@@ -148,28 +148,59 @@ enable_bbr_with_tcpx() {
 # 函数：切换 IPv4/IPv6 优先
 toggle_ipv4_ipv6_preference() {
   clear_screen
-  # 检查 /proc/sys/net/ipv6/prefer_inet6 文件是否存在
-  if [ -f /proc/sys/net/ipv6/prefer_inet6 ]; then
-    current_preference=$(sysctl net.ipv6.prefer_inet6 | awk '{print $3}')
-    if [ "$current_preference" -eq 0 ]; then
-      echo "当前 IPv4 优先。切换到 IPv6 优先..."
-      sudo sysctl -w net.ipv6.prefer_inet6=1
-      sudo sh -c "echo 'net.ipv6.prefer_inet6=1' >> /etc/sysctl.conf"
-      sudo sysctl -p
-      echo "已切换到 IPv6 优先。"
-      read -n 1 -s -p "按任意键继续..."
-    else
-      echo "当前 IPv6 优先。切换到 IPv4 优先..."
-      sudo sysctl -w net.ipv6.prefer_inet6=0
-      sudo sh -c "echo 'net.ipv6.prefer_inet6=0' >> /etc/sysctl.conf"
-      sudo sysctl -p
-      echo "已切换到 IPv4 优先。"
-      read -n 1 -s -p "按任意键继续..."
-    fi
-  else
-    echo "警告：IPv6 功能可能未启用，无法切换 IPv4/IPv6 优先。"
-    read -n 1 -s -p "按任意键继续..."
-  fi
+  echo "切换 IPv4/IPv6 优先："
+  echo "1. 优先使用 IPv6"
+  echo "2. 优先使用 IPv4"
+  echo "3. 禁用 IPv6"
+  echo "9. 返回配置系统环境菜单"
+  echo "0. 退出脚本"
+  echo ""
+  read -p "请选择要执行的操作: " ipv6_choice
+  case "$ipv6_choice" in
+    1)
+      echo "设置优先使用 IPv6..."
+      sudo sed -i 's/^#precedence ::ffff:0:0\/96  100/precedence ::ffff:0:0\/96  100/' /etc/gai.conf
+      echo "已设置优先使用 IPv6。您可能需要重启网络服务或服务器以使更改生效。"
+      read -n 1 -s -p "按任意键返回配置系统环境菜单..."
+      ;;
+    2)
+      echo "设置优先使用 IPv4..."
+      sudo sed -i 's/^precedence ::ffff:0:0\/96  100/#precedence ::ffff:0:0\/96  100/' /etc/gai.conf
+      echo "已设置优先使用 IPv4。您可能需要重启网络服务或服务器以使更改生效。"
+      read -n 1 -s -p "按任意键返回配置系统环境菜单..."
+      ;;
+    3)
+      echo "禁用 IPv6..."
+      NIC=$(ip -o -4 route show to default | awk '{print $5}')
+      if [ -n "$NIC" ]; then
+        sudo cat >> /etc/sysctl.conf << EOF
+net.ipv6.conf.all.autoconf = 0
+net.ipv6.conf.default.autoconf = 0
+net.ipv6.conf.all.accept_ra = 0
+net.ipv6.conf.default.accept_ra = 0
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+net.ipv6.conf.lo.disable_ipv6 = 1
+net.ipv6.conf."$NIC".disable_ipv6 = 1
+EOF
+        sudo sysctl -p
+        echo "已禁用 IPv6。您可能需要重启服务器以使更改完全生效。"
+      else
+        echo "无法自动获取网卡名称，请手动配置禁用 IPv6。"
+      fi
+      read -n 1 -s -p "按任意键返回配置系统环境菜单..."
+      ;;
+    9)
+      break # 返回配置系统环境菜单
+      ;;
+    0)
+      echo "退出脚本。"
+      exit 0
+      ;;
+    *)
+      echo "无效的选项，请重新输入。"
+      ;;
+  esac
 }
 
 # 函数：测试脚本合集子菜单
