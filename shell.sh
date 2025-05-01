@@ -3,9 +3,46 @@
 # 设置脚本在出错时立即退出
 set -e
 
+# 定义脚本在 GitHub 仓库中的信息
+GITHUB_USER="s0meones" # 将 "your_github_username" 替换为您的 GitHub 用户名
+GITHUB_REPO="Shortcuts"     # 将 "your_github_repo" 替换为您的 GitHub 仓库名
+SCRIPT_NAME=$(basename "$0")
+
+# 定义颜色变量 (如果脚本中其他地方有用到)
+gl_huang='\033[0;33m'
+gl_bai='\033[0;37m'
+
 # 函数：清空屏幕
 clear_screen() {
   clear
+}
+
+# 函数：发送统计信息 (占位符，如果您的脚本有实际的统计上报逻辑)
+send_stats() {
+  echo "统计: $1" # 替换为您的实际统计上报代码
+}
+
+# 函数：从 GitHub 更新脚本
+update_script() {
+  clear_screen
+  echo "正在检查更新..."
+  local latest_version_url="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${SCRIPT_NAME}"
+
+  if curl -s --head --request GET "$latest_version_url" | grep "200 OK" > /dev/null 2>&1; then
+    echo "发现新版本，正在下载..."
+    curl -o "$0.new" -L "$latest_version_url"
+    if [ $? -eq 0 ]; then
+      echo "新版本下载完成，正在替换旧版本..."
+      mv "$0.new" "$0"
+      chmod +x "$0"
+      echo "脚本已成功更新！请重新运行脚本以使用新版本。"
+    else
+      echo "下载新版本失败。"
+    fi
+  else
+    echo "当前已是最新版本。"
+  fi
+  read -n 1 -s -p "按任意键返回主菜单..."
 }
 
 # 函数：显示主菜单
@@ -19,9 +56,66 @@ show_main_menu() {
   echo "1. 配置系统环境"
   echo "2. 测试脚本合集"
   echo "3. 富强专用"
+  echo "4. 更新脚本"
   echo "0. 退出脚本"
   echo ""
   read -p "请输入指令数字并按 Enter 键: " main_choice
+}
+
+# 函数：切换 IPv4/IPv6 优先子菜单
+ipv4_ipv6_priority_menu() {
+  root_use # 假设您的脚本中有 root 权限检查函数
+  send_stats "设置v4/v6优先级"
+  while true; do
+    clear_screen
+    echo "设置v4/v6优先级"
+    echo "------------------------"
+    local ipv6_disabled=$(sysctl -n net.ipv6.conf.all.disable_ipv6)
+
+    if [ "$ipv6_disabled" -eq 1 ]; then
+      echo -e "当前网络优先级设置: ${gl_huang}IPv4${gl_bai} 优先"
+    else
+      echo -e "当前网络优先级设置: ${gl_huang}IPv6${gl_bai} 优先"
+    fi
+    echo ""
+    echo "------------------------"
+    echo "1. IPv4 优先          2. IPv6 优先          3. IPv6 修复工具"
+    echo "------------------------"
+    echo "0. 返回上一级选单"
+    echo "------------------------"
+    read -e -p "选择优先的网络: " choice
+
+    case $choice in
+      1)
+        sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 > /dev/null 2>&1
+        echo "已切换为 IPv4 优先"
+        send_stats "已切换为 IPv4 优先"
+        ;;
+      2)
+        sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0 > /dev/null 2>&1
+        echo "已切换为 IPv6 优先"
+        send_stats "已切换为 IPv6 优先"
+        ;;
+
+      3)
+        clear
+        bash <(curl -L -s jhb.ovh/jb/v6.sh)
+        echo "该功能由jhb大神提供，感谢他！"
+        send_stats "ipv6修复"
+        read -n 1 -s -p "按任意键返回 v4/v6 优先级菜单..."
+        ;;
+
+      0)
+        break
+        ;;
+
+      *)
+        echo "无效的选择，请重新输入。"
+        sleep 2
+        ;;
+
+    esac
+  done
 }
 
 # 函数：配置系统环境子菜单
@@ -32,6 +126,7 @@ config_system_env() {
     echo "1. 更新系统 (apt update && apt upgrade -y)"
     echo "2. 安装系统必要环境 (apt install unzip curl wget git sudo -y)"
     echo "3. 开启/配置 BBR 加速 (使用 tcpx.sh)"
+    echo "4. 切换 IPv4/IPv6 优先"
     echo "9. 返回主菜单"
     echo "0. 退出脚本"
     echo ""
@@ -52,6 +147,9 @@ config_system_env() {
         ;;
       3)
         enable_bbr_with_tcpx
+        ;;
+      4)
+        ipv4_ipv6_priority_menu
         ;;
       9)
         break # 返回主菜单
@@ -193,6 +291,7 @@ while true; do
     1) config_system_env ;;
     2) test_scripts_menu ;;
     3) fuqiang_menu ;;
+    4) update_script ;; # 调用更新脚本函数
     0) echo "退出脚本。"; exit 0 ;;
     *) echo "无效的指令，请重新输入。" ;;
   esac
