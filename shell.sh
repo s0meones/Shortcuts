@@ -106,26 +106,6 @@ enable_bbr_with_tcpx() {
   read -n 1 -s -p "按任意键继续..."
 }
 
-# 函数：开启 BBR + FQ 策略 (保持不变，但不再直接调用)
-enable_bbr_fq() {
-  echo "正在尝试开启 BBR + FQ 策略..."
-  sudo sysctl -w net.core.default_qdisc=fq
-  sudo sysctl -w net.ipv4.tcp_congestion_control=bbr
-  echo "BBR + FQ 策略已开启。"
-  # 持久化配置
-  sudo sh -c "echo 'net.core.default_qdisc=fq' >> /etc/sysctl.conf"
-  sudo sh -c "echo 'net.ipv4.tcp_congestion_control=bbr' >> /etc/sysctl.conf"
-  sudo sysctl -p
-
-  # 询问是否重启
-  read -p "策略已更改，是否立即重启服务器以应用更改？ (y/N): " reboot_choice
-  if [[ "$reboot_choice" == "y" || "$reboot_choice" == "Y" ]]; then
-    echo "正在重启服务器..."
-    sudo reboot
-  fi
-  read -n 1 -s -p "按任意键继续..."
-}
-
 # 函数：开放所有端口 (清空防火墙规则)
 open_all_ports() {
   clear_screen
@@ -176,31 +156,47 @@ toggle_ipv4_ipv6_preference() {
 
 # 函数：测试脚本合集子菜单
 test_scripts_menu() {
-  clear_screen
-  echo "测试脚本合集："
-  echo "1. NodeQuality 测试 (bash <(curl -sL https://run.NodeQuality.com))"
-  echo "9. 返回主菜单"
-  echo "0. 退出脚本"
-  echo ""
-  read -p "请输入指令数字并按 Enter 键: " sub_choice
-  case "$sub_choice" in
-    1)
-      echo "正在运行 NodeQuality 测试脚本，请稍候..."
-      bash <(curl -sL https://run.NodeQuality.com)
-      echo "NodeQuality 测试完成。"
-      read -n 1 -s -p "按任意键继续..."
-      ;;
-    9)
-      break # 返回主菜单
-      ;;
-    0)
-      echo "退出脚本。"
-      exit 0
-      ;;
-    *)
-      echo "无效的指令，请重新输入。"
-      ;;
-  esac
+  while true; do
+    clear_screen
+    echo "测试脚本合集："
+    echo "1. NodeQuality 测试 (bash <(curl -sL https://run.NodeQuality.com))"
+    echo "2. IP 质量体检 (bash <(curl -sL IP.Check.Place))"
+    echo "3. 融合怪测试 (bash <(wget -qO- --no-check-certificate https://gitlab.com/spiritysdx/za/-/raw/main/ecs.sh))"
+    echo "9. 返回主菜单"
+    echo "0. 退出脚本"
+    echo ""
+    read -p "请输入指令数字并按 Enter 键: " sub_choice
+    case "$sub_choice" in
+      1)
+        echo "正在运行 NodeQuality 测试脚本，请稍候..."
+        bash <(curl -sL https://run.NodeQuality.com)
+        echo "NodeQuality 测试完成。"
+        read -n 1 -s -p "按任意键返回主菜单..."
+        ;;
+      2)
+        echo "正在运行 IP 质量体检脚本，请稍候..."
+        bash <(curl -sL IP.Check.Place)
+        echo "IP 质量体检完成。"
+        read -n 1 -s -p "按任意键返回主菜单..."
+        ;;
+      3)
+        echo "正在运行 融合怪测试脚本，请稍候..."
+        bash <(wget -qO- --no-check-certificate https://gitlab.com/spiritysdx/za/-/raw/main/ecs.sh)
+        echo "融合怪测试完成。"
+        read -n 1 -s -p "按任意键返回主菜单..."
+        ;;
+      9)
+        break # 返回主菜单
+        ;;
+      0)
+        echo "退出脚本。"
+        exit 0
+        ;;
+      *)
+        echo "无效的指令，请重新输入。"
+        ;;
+    esac
+  done
 }
 
 # 主循环
