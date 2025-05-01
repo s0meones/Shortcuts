@@ -87,9 +87,12 @@ config_system_env() {
 # 函数：开启 Debian 原版 BBR 加速
 enable_vanilla_bbr() {
   echo "正在尝试开启 Debian 原版 BBR 加速..."
-  # 检查内核版本是否支持 BBR (通常 Linux 4.9 及以上)
-  kernel_version=$(uname -r | awk -F'.' '{print $1"."$2}')
-  if (( $(echo "$kernel_version" | bc -l) >= $(echo "4.9" | bc -l) )); then
+  # 获取主版本号和次版本号
+  kernel_major=$(uname -r | cut -d'.' -f1)
+  kernel_minor=$(uname -r | cut -d'.' -f2)
+
+  # 比较主版本号和次版本号
+  if [[ "$kernel_major" -gt 4 ]] || [[ "$kernel_major" -eq 4 && "$kernel_minor" -ge 9 ]]; then
     # 尝试开启 BBR
     if sudo sysctl -w net.ipv4.tcp_congestion_control=bbr; then
       echo "成功开启 BBR 加速。"
@@ -113,7 +116,7 @@ enable_vanilla_bbr() {
       echo "开启 BBR 加速失败。"
     fi
   else
-    echo "当前内核版本 ($kernel_version) 可能不支持 BBR，跳过。"
+    echo "当前内核版本 ($kernel_major.$kernel_minor) 可能不支持 BBR，跳过。"
   fi
   read -n 1 -s -p "按任意键继续..."
 }
