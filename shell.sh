@@ -3,11 +3,6 @@
 # 设置脚本在出错时立即退出
 set -e
 
-# 定义脚本在 GitHub 仓库中的信息 (不再使用，但保留变量定义)
-GITHUB_USER="s0meones" # 请替换为您的 GitHub 用户名
-GITHUB_REPO="Shorcuts"     # 请替换为您的 GitHub 仓库名
-SCRIPT_NAME=$(basename "$0")
-
 # 函数：清空屏幕
 clear_screen() {
   clear
@@ -48,24 +43,42 @@ add_swap() {
   local size_mb="$1"
   local swap_file="/swapfile"
 
-  echo "开始创建 ${size_mb}MB 的虚拟内存..."
+  if [ -e "$swap_file" ]; then
+    echo -e "\n警告：文件 ${swap_file} 已存在。"
+    read -p "是否覆盖现有文件？ (y/N，警告：如果当前是活动的 swap，可能会导致问题): " overwrite
+    if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
+      read -p "请输入新的交换文件名 (例如 /swapfile2): " new_swap_file
+      if [ -z "$new_swap_file" ]; then
+        echo "操作取消。"
+        read -n 1 -s -p "按任意键继续..."
+        return 1
+      else
+        swap_file="$new_swap_file"
+      fi
+    fi
+  fi
+
+  echo "开始创建 ${size_mb}MB 的虚拟内存文件: ${swap_file}..."
   sudo fallocate -l "${size_mb}M" "$swap_file"
   if [ $? -ne 0 ]; then
     echo "创建交换文件失败。"
+    read -n 1 -s -p "按任意键继续..."
     return 1
   fi
   sudo chmod 600 "$swap_file"
   sudo mkswap "$swap_file"
   if [ $? -ne 0 ]; then
     echo "设置交换文件失败。"
+    read -n 1 -s -p "按任意键继续..."
     return 1
   fi
   sudo swapon "$swap_file"
   if [ $? -ne 0 ]; then
     echo "启用交换文件失败。"
+    read -n 1 -s -p "按任意键继续..."
     return 1
   fi
-  echo "/swapfile swap swap defaults 0 0" | sudo tee -a /etc/fstab
+  echo "${swap_file} swap swap defaults 0 0" | sudo tee -a /etc/fstab
   echo "成功设置 ${size_mb}MB 虚拟内存。"
   read -n 1 -s -p "按任意键继续..."
 }
