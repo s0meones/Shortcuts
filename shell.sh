@@ -149,7 +149,7 @@ enable_bbr_with_tcpx() {
 toggle_ipv4_ipv6_preference() {
   clear_screen
   echo "切换 IPv4/IPv6 优先："
-  echo "1. 优先使用 IPv6"
+  echo "1. 优先使用 IPv6 (默认)"
   echo "2. 优先使用 IPv4"
   echo "3. 禁用 IPv6"
   echo "9. 返回配置系统环境菜单"
@@ -158,14 +158,14 @@ toggle_ipv4_ipv6_preference() {
   read -p "请选择要执行的操作: " ipv6_choice
   case "$ipv6_choice" in
     1)
-      echo "设置优先使用 IPv6..."
-      sudo sed -i 's/^#precedence ::ffff:0:0\/96  100/precedence ::ffff:0:0\/96  100/' /etc/gai.conf
-      echo "已设置优先使用 IPv6。您可能需要重启网络服务或服务器以使更改生效。"
+      echo "设置优先使用 IPv6 (恢复默认)..."
+      sudo sed -i 's/^precedence ::ffff:0:0\/96  100/#precedence ::ffff:0:0\/96  100/' /etc/gai.conf
+      echo "已设置优先使用 IPv6 (恢复默认)。您可能需要重启网络服务或服务器以使更改生效。"
       read -n 1 -s -p "按任意键返回配置系统环境菜单..."
       ;;
     2)
       echo "设置优先使用 IPv4..."
-      sudo sed -i 's/^precedence ::ffff:0:0\/96  100/#precedence ::ffff:0:0\/96  100/' /etc/gai.conf
+      sudo sed -i 's/^#precedence ::ffff:0:0\/96  100/precedence ::ffff:0:0\/96  100/' /etc/gai.conf
       echo "已设置优先使用 IPv4。您可能需要重启网络服务或服务器以使更改生效。"
       read -n 1 -s -p "按任意键返回配置系统环境菜单..."
       ;;
