@@ -40,7 +40,7 @@ config_system_env() {
     echo "配置系统环境："
     echo "1. 更新系统 (apt update && apt upgrade -y)"
     echo "2. 安装系统必要环境 (apt install unzip curl wget git sudo -y)"
-    echo "3. 开启 BBR 加速 (Debian 原版)"
+    echo "3. 开启/配置 BBR 加速 (使用 tcpx.sh)"
     echo "4. 开放所有端口 (清空防火墙规则)"
     echo "5. 切换 IPv4/IPv6 优先"
     echo "9. 返回主菜单"
@@ -62,7 +62,7 @@ config_system_env() {
         read -n 1 -s -p "按任意键继续..."
         ;;
       3)
-        enable_vanilla_bbr
+        enable_bbr_with_tcpx
         ;;
       4)
         open_all_ports
@@ -84,44 +84,29 @@ config_system_env() {
   done
 }
 
-# 函数：开启 Debian 原版 BBR 加速
-enable_vanilla_bbr() {
-  echo "正在尝试开启 Debian 原版 BBR 加速..."
-  # 获取主版本号和次版本号
-  kernel_major=$(uname -r | cut -d'.' -f1)
-  kernel_minor=$(uname -r | cut -d'.' -f2)
+# 函数：使用 tcpx.sh 开启/配置 BBR 加速
+enable_bbr_with_tcpx() {
+  clear_screen
+  echo "正在下载并执行 tcpx.sh 脚本以开启/配置 BBR 加速..."
+  wget -O tcpx.sh "https://github.com/ylx2016/Linux-NetSpeed/raw/master/tcpx.sh"
+  if [ -f tcpx.sh ]; then
+    chmod +x tcpx.sh
+    ./tcpx.sh
+    rm -f tcpx.sh # 执行完毕后删除脚本
 
-  # 比较主版本号和次版本号
-  if [[ "$kernel_major" -gt 4 ]] || [[ "$kernel_major" -eq 4 && "$kernel_minor" -ge 9 ]]; then
-    # 尝试开启 BBR
-    if sudo sysctl -w net.ipv4.tcp_congestion_control=bbr; then
-      echo "成功开启 BBR 加速。"
-      # 持久化配置
-      sudo sh -c "echo 'net.ipv4.tcp_congestion_control=bbr' >> /etc/sysctl.conf"
-      sudo sysctl -p
-
-      # 检查是否成功启用 BBR
-      current_bbr=$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')
-      if [ "$current_bbr" == "bbr" ]; then
-        echo "BBR 已成功激活。"
-        # 询问是否启用 BBR + FQ
-        read -p "是否同时启用 BBR + FQ 策略？ (y/N): " enable_fq
-        if [[ "$enable_fq" == "y" || "$enable_fq" == "Y" ]]; then
-          enable_bbr_fq
-        fi
-      else
-        echo "警告：BBR 激活可能失败，请检查系统日志。"
-      fi
-    else
-      echo "开启 BBR 加速失败。"
+    # 询问是否重启
+    read -p "tcpx.sh 脚本已执行完毕，是否立即重启服务器以应用更改？ (y/N): " reboot_choice
+    if [[ "$reboot_choice" == "y" || "$reboot_choice" == "Y" ]]; then
+      echo "正在重启服务器..."
+      sudo reboot
     fi
   else
-    echo "当前内核版本 ($kernel_major.$kernel_minor) 可能不支持 BBR，跳过。"
+    echo "下载 tcpx.sh 脚本失败，无法开启/配置 BBR 加速。"
   fi
   read -n 1 -s -p "按任意键继续..."
 }
 
-# 函数：开启 BBR + FQ 策略
+# 函数：开启 BBR + FQ 策略 (保持不变，但不再直接调用)
 enable_bbr_fq() {
   echo "正在尝试开启 BBR + FQ 策略..."
   sudo sysctl -w net.core.default_qdisc=fq
