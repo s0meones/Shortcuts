@@ -4,6 +4,19 @@
 # 设置脚本在出错时立即退出
 set -e
 
+# 尝试修正行尾符 (CRLF -> LF)
+if [[ $(file --mime-type -b "$0") == *"text/plain"* ]]; then
+  echo "正在检查并尝试修正脚本的行尾符..."
+  if grep -q $'\r' "$0"; then
+    echo "发现 Windows 风格的行尾符 (CRLF)，正在转换为 Unix 风格 (LF)..."
+    sed -i 's/\r$//' "$0"
+    echo "行尾符转换完成。请重新运行脚本。"
+    exit 0 # 转换后退出，建议用户重新运行
+  else
+    echo "未发现 Windows 风格的行尾符。"
+  fi
+fi
+
 # 定义颜色代码
 RED='\033[0;31m'
 GREEN='\033[0;32m'
