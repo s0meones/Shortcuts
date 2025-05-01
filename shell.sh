@@ -14,13 +14,13 @@ show_main_menu() {
   echo "请选择要执行的操作："
   echo "1. 配置系统环境"
   echo "2. 测试脚本合集"
-  echo "3. 更新本脚本"
+  echo "3. 开启 BBR v3 加速"
   echo "0. 退出脚本"
   echo ""
   read -p "请输入指令数字并按 Enter 键: " main_choice
 }
 
-# 函数：更新本脚本
+# 函数：更新本脚本 (已去除，因为在主菜单中)
 update_script() {
   echo "更新本脚本功能需要配置 GitHub 仓库信息才能自动完成。"
   echo "请手动从 GitHub 下载最新版本并替换。"
@@ -28,15 +28,13 @@ update_script() {
   echo ""
 }
 
-# 函数：配置系统环境子菜单
+# 函数：配置系统环境子菜单 (部分功能已移动到主菜单)
 config_system_env() {
   while true; do
     echo ""
     echo "配置系统环境："
     echo "1. 更新系统 (apt update && apt upgrade -y)"
     echo "2. 安装系统必要环境 (apt install unzip curl wget git sudo -y)"
-    echo "3. 开启 BBR v3 加速"
-    echo "4. 开启 BBR v3 + FQ 策略 (如果 BBR v3 已启用)"
     echo "5. 开放所有端口 (清空防火墙规则)"
     echo "6. 切换 IPv4/IPv6 优先"
     echo "9. 返回主菜单"
@@ -54,12 +52,6 @@ config_system_env() {
         echo "正在安装必要环境，请稍候..."
         sudo apt install unzip curl wget git sudo -y
         echo "必要环境安装完成。"
-        ;;
-      3)
-        enable_bbrv3
-        ;;
-      4)
-        enable_bbr_fq
         ;;
       5)
         open_all_ports
@@ -98,6 +90,12 @@ enable_bbrv3() {
     sudo sh -c "echo 'net.core.default_qdisc=cake' >> /etc/sysctl.conf"
     sudo sh -c "echo 'net.ipv4.tcp_congestion_control=bbr3' >> /etc/sysctl.conf"
     sudo sysctl -p
+
+    # 询问是否启用 BBR v3 + FQ
+    read -p "是否同时启用 BBR v3 + FQ 策略？ (y/N): " enable_fq
+    if [[ "$enable_fq" == "y" || "$enable_fq" == "Y" ]]; then
+      enable_bbr_fq
+    fi
   else
     echo "当前内核版本 ($kernel_version) 可能不支持 BBR v3，跳过。"
   fi
@@ -106,18 +104,19 @@ enable_bbrv3() {
 # 函数：开启 BBR v3 + FQ 策略
 enable_bbr_fq() {
   echo "正在尝试开启 BBR v3 + FQ 策略..."
-  # 假设已经开启了 BBR v3，这里只修改拥塞控制算法
-  current_congestion_control=$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')
-  if [ "$current_congestion_control" == "bbr3" ]; then
-    sudo sysctl -w net.core.default_qdisc=fq
-    sudo sysctl -w net.ipv4.tcp_congestion_control=bbr3
-    echo "BBR v3 + FQ 策略已开启。"
-    # 持久化配置
-    sudo sh -c "echo 'net.core.default_qdisc=fq' >> /etc/sysctl.conf"
-    sudo sh -c "echo 'net.ipv4.tcp_congestion_control=bbr3' >> /etc/sysctl.conf"
-    sudo sysctl -p
-  else
-    echo "请先开启 BBR v3，才能启用 BBR v3 + FQ 策略。"
+  sudo sysctl -w net.core.default_qdisc=fq
+  sudo sysctl -w net.ipv4.tcp_congestion_control=bbr3
+  echo "BBR v3 + FQ 策略已开启。"
+  # 持久化配置
+  sudo sh -c "echo 'net.core.default_qdisc=fq' >> /etc/sysctl.conf"
+  sudo sh -c "echo 'net.ipv4.tcp_congestion_control=bbr3' >> /etc/sysctl.conf"
+  sudo sysctl -p
+
+  # 询问是否重启
+  read -p "策略已更改，是否立即重启服务器以应用更改？ (y/N): " reboot_choice
+  if [[ "$reboot_choice" == "y" || "$reboot_choice" == "Y" ]]; then
+    echo "正在重启服务器..."
+    sudo reboot
   fi
 }
 
@@ -197,7 +196,7 @@ while true; do
   case "$main_choice" in
     1) config_system_env ;;
     2) test_scripts_menu ;;
-    3) update_script ;;
+    3) enable_bbrv3 ;; # 直接调用开启 BBR v3 的函数
     0) echo "退出脚本。"; exit 0 ;;
     *) echo "无效的指令，请重新输入。" ;;
   esac
