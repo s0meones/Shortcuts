@@ -8,6 +8,10 @@ GITHUB_USER="s0meones" # 请替换为您的 GitHub 用户名
 GITHUB_REPO="Shorcuts"     # 请替换为您的 GitHub 仓库名
 SCRIPT_NAME=$(basename "$0")
 
+# 定义颜色变量 (如果需要，取消注释)
+# gl_huang='\033[0;33m'
+# gl_bai='\033[0;37m'
+
 # 函数：清空屏幕
 clear_screen() {
   clear
@@ -60,7 +64,7 @@ update_script() {
       echo "发现新版本，正在替换旧版本..."
       mv "$latest_script_path" "$current_script_path"
       chmod +x "$current_script_path"
-      echo "脚本已成功更新！请重新运行脚本以使用新版本。"
+      echo -e "\n脚本已成功更新！请退出并重新运行脚本以使用新版本。\n" # 添加更新后提示
     else
       echo "当前已是最新版本。"
       rm -f "$latest_script_path" # 删除临时文件
@@ -77,9 +81,9 @@ config_system_env() {
   while true; do
     clear_screen
     echo "配置系统环境："
-    echo "1. 更新系统"
-    echo "2. 安装系统必要环境 unzip curl wget git sudo"
-    echo "3. 开启/配置 BBR 加速"
+    echo "1. 更新系统 apt update && apt upgrade -y"
+    echo "2. 安装系统必要环境 apt install unzip curl wget git sudo -"
+    echo "3. 开启/配置 BBR 加速 使用 tcpx.sh"
     echo "4. 切换 IPv4/IPv6 优先"
     echo "9. 返回主菜单"
     echo "0. 退出脚本"
