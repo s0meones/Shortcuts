@@ -29,27 +29,8 @@ show_main_menu() {
 
 # 函数：更新本脚本
 update_script() {
-  echo "${YELLOW}正在尝试更新脚本...${NC}"
-  if command -v curl >/dev/null 2>&1; then
-    curl -sSL "https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${SCRIPT_NAME}" -o "${SCRIPT_NAME}"
-    if [ $? -eq 0 ]; then
-      chmod +x "${SCRIPT_NAME}"
-      echo "${GREEN}脚本更新成功！请重新运行以应用最新版本。${NC}"
-    else
-      echo "${RED}更新脚本失败，请检查网络连接或 GitHub 仓库信息。${NC}"
-    fi
-  elif command -v wget >/dev/null 2>&1; then
-    wget -qO "${SCRIPT_NAME}" "https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${SCRIPT_NAME}"
-    if [ $? -eq 0 ]; then
-      chmod +x "${SCRIPT_NAME}"
-      echo "${GREEN}脚本更新成功！请重新运行以应用最新版本。${NC}"
-    else
-      echo "${RED}更新脚本失败，请检查网络连接或 GitHub 仓库信息。${NC}"
-    fi
-  else
-    echo "${RED}未找到 curl 或 wget 命令，无法自动更新脚本。${NC}"
-    echo "${YELLOW}请手动从 GitHub 下载最新版本并替换。${NC}"
-  fi
+  echo "${YELLOW}更新本脚本功能需要配置 GitHub 仓库信息才能自动完成。${NC}"
+  echo "${YELLOW}请手动从 GitHub 下载最新版本并替换。${NC}"
   read -n 1 -s -p "${YELLOW}按任意键返回主菜单...${NC}"
   echo ""
 }
