@@ -37,54 +37,9 @@ send_stats() {
   echo "统计: $1"
 }
 
-# 函数：添加虚拟内存
-add_swap() {
-  check_root
-  local size_mb="$1"
-  local swap_file="/swapfile"
-
-  if [ -e "$swap_file" ]; then
-    echo -e "\n警告：文件 ${swap_file} 已存在。"
-    read -p "是否覆盖现有文件？ (y/N，警告：如果当前是活动的 swap，可能会导致问题): " overwrite
-    if [[ ! "$overwrite" =~ ^[Yy]$ ]]; then
-      read -p "请输入新的交换文件名 (例如 /swapfile2): " new_swap_file
-      if [ -z "$new_swap_file" ]; then
-        echo "操作取消。"
-        read -n 1 -s -p "按任意键继续..."
-        return 1
-      else
-        swap_file="$new_swap_file"
-      fi
-    fi
-  fi
-
-  echo "开始创建 ${size_mb}MB 的虚拟内存文件: ${swap_file}..."
-  sudo fallocate -l "${size_mb}M" "$swap_file"
-  if [ $? -ne 0 ]; then
-    echo "创建交换文件失败。"
-    read -n 1 -s -p "按任意键继续..."
-    return 1
-  fi
-  sudo chmod 600 "$swap_file"
-  sudo mkswap "$swap_file"
-  if [ $? -ne 0 ]; then
-    echo "设置交换文件失败。"
-    read -n 1 -s -p "按任意键继续..."
-    return 1
-  fi
-  sudo swapon "$swap_file"
-  if [ $? -ne 0 ]; then
-    echo "启用交换文件失败。"
-    read -n 1 -s -p "按任意键继续..."
-    return 1
-  fi
-  echo "${swap_file} swap swap defaults 0 0" | sudo tee -a /etc/fstab
-  echo "成功设置 ${size_mb}MB 虚拟内存。"
-  read -n 1 -s -p "按任意键继续..."
-}
-
 # 函数：开放所有端口
 open_all_ports() {
+  clear_screen
   check_root
   send_stats "开放端口"
   if command -v iptables >/dev/null 2>&1; then
@@ -121,65 +76,17 @@ open_all_ports() {
   read -n 1 -s -p "按任意键继续..."
 }
 
-# 函数：设置虚拟内存子菜单
-set_swap() {
-  check_root
-  send_stats "设置虚拟内存"
-  while true; do
-    clear_screen
-    echo "设置虚拟内存"
-    local swap_used=$(free -m | awk 'NR==3{print $3}')
-    local swap_total=$(free -m | awk 'NR==3{print $2}')
-    local swap_info=$(free -m | awk 'NR==3{used=$3; total=$2; if (total == 0) {percentage=0} else {percentage=used*100/total}; printf "%dM/%dM (%d%%)", used, total, percentage}')
-
-    echo "当前虚拟内存: $swap_info"
-    echo "------------------------"
-    echo "1. 分配1024M          2. 分配2048M          3. 分配4096M          4. 自定义大小"
-    echo "------------------------"
-    echo "0. 返回上一级选单"
-    echo "------------------------"
-    read -e -p "请输入你的选择: " choice
-
-    case "$choice" in
-      1)
-        send_stats "已设置1G虚拟内存"
-        add_swap 1024
-        ;;
-      2)
-        send_stats "已设置2G虚拟内存"
-        add_swap 2048
-        ;;
-      3)
-        send_stats "已设置4G虚拟内存"
-        add_swap 4096
-        ;;
-      4)
-        read -e -p "请输入虚拟内存大小（单位M）: " new_swap
-        add_swap "$new_swap"
-        send_stats "已设置自定义虚拟内存"
-        ;;
-      0)
-        break
-        ;;
-      *)
-        echo "无效的选择，请重新输入。"
-        ;;
-    esac
-  done
-}
-
 # 函数：配置系统环境子菜单
 config_system_env() {
+  clear_screen
   check_root
   while true; do
-    clear_screen
     echo "配置系统环境："
     echo "1. 更新系统"
     echo "2. 安装系统必要环境 unzip curl wget git sudo -"
     echo "3. 开启/配置 BBR 加速"
     echo "4. 切换 IPv4/IPv6 优先"
     echo "5. 开放所有端口"
-    echo "6. 设置虚拟内存"
     echo "9. 返回主菜单"
     echo "0. 退出脚本"
     echo ""
@@ -206,9 +113,6 @@ config_system_env() {
         ;;
       5)
         open_all_ports
-        ;;
-      6)
-        set_swap
         ;;
       9)
         break # 返回主菜单
@@ -247,10 +151,10 @@ enable_bbr_with_tcpx() {
 
 # 函数：切换 IPv4/IPv6 优先子菜单 (被 config_system_env 调用)
 ipv4_ipv6_priority_menu() {
+  clear_screen
   check_root
   send_stats "设置v4/v6优先级"
   while true; do
-    clear_screen
     echo "设置v4/v6优先级"
     echo "------------------------"
     local ipv6_disabled=$(sysctl -n net.ipv6.conf.all.disable_ipv6)
@@ -303,6 +207,7 @@ ipv4_ipv6_priority_menu() {
 
 # 函数：测试脚本合集子菜单
 test_scripts_menu() {
+  clear_screen
   while true; do
     echo "测试脚本合集："
     echo "1. NodeQuality 测试"
@@ -314,6 +219,7 @@ test_scripts_menu() {
     read -p "请输入指令数字并按 Enter 键: " sub_choice_test
     case "$sub_choice_test" in
       1)
+        echo ""
         read -p "确定要运行 NodeQuality 测试吗？ (y/N): " confirm
         if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
           echo "正在运行 NodeQuality 测试脚本，请稍候..."
@@ -323,6 +229,7 @@ test_scripts_menu() {
         fi
         ;;
       2)
+        echo ""
         read -p "确定要运行 IP 质量体检吗？ (y/N): " confirm
         if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
           echo "正在运行 IP 质量体检脚本，请稍候..."
@@ -332,6 +239,7 @@ test_scripts_menu() {
         fi
         ;;
       3)
+        echo ""
         read -p "确定要运行 融合怪测试吗？ (y/N): " confirm
         if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
           echo "正在运行 融合怪测试脚本，请稍候..."
@@ -356,8 +264,8 @@ test_scripts_menu() {
 
 # 函数：富强专用子菜单
 fuqiang_menu() {
+  clear_screen
   while true; do
-    clear_screen
     echo "富强专用："
     echo "1. 安装 3x-ui 面板"
     echo "2. 安装八合一脚本"
