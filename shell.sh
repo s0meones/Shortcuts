@@ -77,9 +77,9 @@ config_system_env() {
   while true; do
     clear_screen
     echo "配置系统环境："
-    echo "1. 更新系统 apt update && apt upgrade -y"
-    echo "2. 安装系统必要环境 apt install unzip curl wget git sudo -"
-    echo "3. 开启/配置 BBR 加速 使用 tcpx.sh"
+    echo "1. 更新系统"
+    echo "2. 安装系统必要环境 unzip curl wget git sudo"
+    echo "3. 开启/配置 BBR 加速"
     echo "4. 切换 IPv4/IPv6 优先"
     echo "9. 返回主菜单"
     echo "0. 退出脚本"
