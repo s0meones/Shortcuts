@@ -4,8 +4,8 @@
 set -e
 
 # 定义脚本在 GitHub 仓库中的信息
-GITHUB_USER="s0meones" # 将 "your_github_username" 替换为您的 GitHub 用户名
-GITHUB_REPO="Shorcuts"     # 将 "your_github_repo" 替换为您的 GitHub 仓库名
+GITHUB_USER="s0meones" # 请替换为您的 GitHub 用户名
+GITHUB_REPO="Shorcuts"     # 请替换为您的 GitHub 仓库名
 SCRIPT_NAME=$(basename "$0")
 
 # 定义颜色变量 (如果脚本中其他地方有用到)
@@ -32,7 +32,7 @@ check_root() {
 
 # 函数：切换 IPv4/IPv6 优先子菜单
 ipv4_ipv6_priority_menu() {
-  check_root # 检查 root 权限
+  check_root # 再次确保 root 权限
   send_stats "设置v4/v6优先级"
   while true; do
     clear_screen
@@ -110,6 +110,7 @@ enable_bbr_with_tcpx() {
 
 # 函数：配置系统环境子菜单
 config_system_env() {
+  check_root # 确保在进入配置菜单时已是 root
   while true; do
     clear_screen
     echo "配置系统环境："
