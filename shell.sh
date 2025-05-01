@@ -8,10 +8,6 @@ GITHUB_USER="s0meones" # 请替换为您的 GitHub 用户名
 GITHUB_REPO="Shorcuts"     # 请替换为您的 GitHub 仓库名
 SCRIPT_NAME=$(basename "$0")
 
-# 定义颜色变量 (如果需要，取消注释)
-# gl_huang='\033[0;33m'
-# gl_bai='\033[0;37m'
-
 # 函数：清空屏幕
 clear_screen() {
   clear
@@ -45,6 +41,21 @@ check_root() {
 # 函数：发送统计信息 (占位符)
 send_stats() {
   echo "统计: $1"
+}
+
+# 函数：开放所有端口
+open_all_ports() {
+  check_root
+  send_stats "开放端口"
+  sudo iptables -P INPUT ACCEPT
+  sudo iptables -P FORWARD ACCEPT
+  sudo iptables -P OUTPUT ACCEPT
+  sudo iptables -F
+  sudo rm -f /etc/iptables/rules.v4 /etc/iptables/rules.v6
+  sudo systemctl stop ufw firewalld iptables-persistent iptables-services 2>/dev/null || true
+  sudo systemctl disable ufw firewalld iptables-persistent iptables-services 2>/dev/null || true
+  echo "端口已全部开放"
+  read -n 1 -s -p "按任意键继续..."
 }
 
 # 函数：更新脚本
@@ -93,6 +104,7 @@ config_system_env() {
     echo "2. 安装系统必要环境 unzip curl wget git sudo -"
     echo "3. 开启/配置 BBR 加速"
     echo "4. 切换 IPv4/IPv6 优先"
+    echo "5. 开放所有端口"
     echo "9. 返回主菜单"
     echo "0. 退出脚本"
     echo ""
@@ -116,6 +128,9 @@ config_system_env() {
         ;;
       4)
         ipv4_ipv6_priority_menu
+        ;;
+      5)
+        open_all_ports
         ;;
       9)
         break # 返回主菜单
@@ -211,7 +226,6 @@ ipv4_ipv6_priority_menu() {
 # 函数：测试脚本合集子菜单
 test_scripts_menu() {
   while true; do
-    clear_screen
     echo "测试脚本合集："
     echo "1. NodeQuality 测试"
     echo "2. IP 质量体检"
@@ -222,22 +236,31 @@ test_scripts_menu() {
     read -p "请输入指令数字并按 Enter 键: " sub_choice_test
     case "$sub_choice_test" in
       1)
-        echo "正在运行 NodeQuality 测试脚本，请稍候..."
-        bash <(curl -sL https://run.NodeQuality.com)
-        echo "NodeQuality 测试完成。"
-        read -n 1 -s -p "按任意键返回测试脚本合集菜单..."
+        read -p "确定要运行 NodeQuality 测试吗？ (y/N): " confirm
+        if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+          echo "正在运行 NodeQuality 测试脚本，请稍候..."
+          bash <(curl -sL https://run.NodeQuality.com)
+          echo "NodeQuality 测试完成。"
+          read -n 1 -s -p "按任意键返回测试脚本合集菜单..."
+        fi
         ;;
       2)
-        echo "正在运行 IP 质量体检脚本，请稍候..."
-        bash <(curl -sL IP.Check.Place)
-        echo "IP 质量体检完成。"
-        read -n 1 -s -p "按任意键返回测试脚本合集菜单..."
+        read -p "确定要运行 IP 质量体检吗？ (y/N): " confirm
+        if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+          echo "正在运行 IP 质量体检脚本，请稍候..."
+          bash <(curl -sL IP.Check.Place)
+          echo "IP 质量体检完成。"
+          read -n 1 -s -p "按任意键返回测试脚本合集菜单..."
+        fi
         ;;
       3)
-        echo "正在运行 融合怪测试脚本，请稍候..."
-        bash <(wget -qO- --no-check-certificate https://gitlab.com/spiritysdx/za/-/raw/main/ecs.sh)
-        echo "融合怪测试完成。"
-        read -n 1 -s -p "按任意键返回测试脚本合集菜单..."
+        read -p "确定要运行 融合怪测试吗？ (y/N): " confirm
+        if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+          echo "正在运行 融合怪测试脚本，请稍候..."
+          bash <(wget -qO- --no-check-certificate https://gitlab.com/spiritysdx/za/-/raw/main/ecs.sh)
+          echo "融合怪测试完成。"
+          read -n 1 -s -p "按任意键返回测试脚本合集菜单..."
+        fi
         ;;
       9)
         break # 返回主菜单
@@ -262,8 +285,7 @@ fuqiang_menu() {
     echo "2. 安装八合一脚本"
     echo "3. 安装 snell"
     echo "4. 安装 realm & gost 一键转发脚本"
-    echo "9. 返回主菜单"
-    echo "0. 退出脚本"
+    echo "0. 返回主菜单"
     echo ""
     read -p "请输入指令数字并按 Enter 键: " sub_choice_fq
     case "$sub_choice_fq" in
@@ -271,32 +293,32 @@ fuqiang_menu() {
         echo "正在安装 3x-ui 面板，请稍候..."
         bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
         echo "3x-ui 面板安装完成。"
-        read -n 1 -s -p "按任意键返回富强专用菜单..."
+        echo "操作已完成，脚本即将结束。"
+        exit 0
         ;;
       2)
         echo "正在安装八合一脚本，请稍候..."
         wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
         echo "八合一脚本安装完成。"
-        read -n 1 -s -p "按任意键返回富强专用菜单..."
+        echo "操作已完成，脚本即将结束。"
+        exit 0
         ;;
       3)
         echo "正在安装 snell，请稍候..."
         wget https://raw.githubusercontent.com/jinqians/snell.sh/main/snell.sh -O snell.sh && chmod +x snell.sh && ./snell.sh
         echo "snell 安装完成。"
-        read -n 1 -s -p "按任意键返回富强专用菜单..."
+        echo "操作已完成，脚本即将结束。"
+        exit 0
         ;;
       4)
         echo "正在安装 realm & gost 一键转发脚本，请稍候..."
         wget --no-check-certificate -O gost.sh https://raw.githubusercontent.com/qqrrooty/EZgost/main/gost.sh && chmod +x gost.sh && ./gost.sh
         echo "realm & gost 一键转发脚本安装完成。"
-        read -n 1 -s -p "按任意键返回富强专用菜单..."
-        ;;
-      9)
-        break # 返回主菜单
+        echo "操作已完成，脚本即将结束。"
+        exit 0
         ;;
       0)
-        echo "退出脚本。"
-        exit 0
+        break # 返回主菜单
         ;;
       *)
         echo "无效的指令，请重新输入。"
