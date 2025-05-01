@@ -5,7 +5,7 @@ set -e
 
 # 定义脚本在 GitHub 仓库中的信息
 GITHUB_USER="s0meones" # 将 "your_github_username" 替换为您的 GitHub 用户名
-GITHUB_REPO="Shortcuts"     # 将 "your_github_repo" 替换为您的 GitHub 仓库名
+GITHUB_REPO="Shorcuts"     # 将 "your_github_repo" 替换为您的 GitHub 仓库名
 SCRIPT_NAME=$(basename "$0")
 
 # 定义颜色变量 (如果脚本中其他地方有用到)
@@ -22,49 +22,17 @@ send_stats() {
   echo "统计: $1" # 替换为您的实际统计上报代码
 }
 
-# 函数：从 GitHub 更新脚本
-update_script() {
-  clear_screen
-  echo "正在检查更新..."
-  local latest_version_url="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${SCRIPT_NAME}"
-
-  if curl -s --head --request GET "$latest_version_url" | grep "200 OK" > /dev/null 2>&1; then
-    echo "发现新版本，正在下载..."
-    curl -o "$0.new" -L "$latest_version_url"
-    if [ $? -eq 0 ]; then
-      echo "新版本下载完成，正在替换旧版本..."
-      mv "$0.new" "$0"
-      chmod +x "$0"
-      echo "脚本已成功更新！请重新运行脚本以使用新版本。"
-    else
-      echo "下载新版本失败。"
-    fi
-  else
-    echo "当前已是最新版本。"
+# 函数：检查是否以 root 身份运行
+check_root() {
+  if [[ "$EUID" -ne 0 ]]; then
+    echo -e "${gl_huang}错误：请以 root 用户身份运行此脚本。${gl_bai}"
+    exit 1
   fi
-  read -n 1 -s -p "按任意键返回主菜单..."
-}
-
-# 函数：显示主菜单
-show_main_menu() {
-  clear_screen
-  echo ""
-  echo "Debian 12 一键配置交互式脚本"
-  echo "作者：s0meones"
-  echo ""
-  echo "请选择要执行的操作："
-  echo "1. 配置系统环境"
-  echo "2. 测试脚本合集"
-  echo "3. 富强专用"
-  echo "4. 更新脚本"
-  echo "0. 退出脚本"
-  echo ""
-  read -p "请输入指令数字并按 Enter 键: " main_choice
 }
 
 # 函数：切换 IPv4/IPv6 优先子菜单
 ipv4_ipv6_priority_menu() {
-  root_use # 假设您的脚本中有 root 权限检查函数
+  check_root # 检查 root 权限
   send_stats "设置v4/v6优先级"
   while true; do
     clear_screen
@@ -118,6 +86,28 @@ ipv4_ipv6_priority_menu() {
   done
 }
 
+# 函数：使用 tcpx.sh 开启/配置 BBR 加速
+enable_bbr_with_tcpx() {
+  clear_screen
+  echo "正在下载并执行 tcpx.sh 脚本以开启/配置 BBR 加速..."
+  wget -O tcpx.sh "https://github.com/ylx2016/Linux-NetSpeed/raw/master/tcpx.sh"
+  if [ -f tcpx.sh ]; then
+    chmod +x tcpx.sh
+    ./tcpx.sh
+    rm -f tcpx.sh # 执行完毕后删除脚本
+
+    # 询问是否重启
+    read -p "tcpx.sh 脚本已执行完毕，是否立即重启服务器以应用更改？ (y/N): " reboot_choice
+    if [[ "$reboot_choice" == "y" || "$reboot_choice" == "Y" ]]; then
+      echo "正在重启服务器..."
+      sudo reboot
+    fi
+  else
+    echo "下载 tcpx.sh 脚本失败，无法开启/配置 BBR 加速。"
+  fi
+  read -n 1 -s -p "按任意键继续..."
+}
+
 # 函数：配置系统环境子菜单
 config_system_env() {
   while true; do
@@ -163,28 +153,6 @@ config_system_env() {
         ;;
     esac
   done
-}
-
-# 函数：使用 tcpx.sh 开启/配置 BBR 加速
-enable_bbr_with_tcpx() {
-  clear_screen
-  echo "正在下载并执行 tcpx.sh 脚本以开启/配置 BBR 加速..."
-  wget -O tcpx.sh "https://github.com/ylx2016/Linux-NetSpeed/raw/master/tcpx.sh"
-  if [ -f tcpx.sh ]; then
-    chmod +x tcpx.sh
-    ./tcpx.sh
-    rm -f tcpx.sh # 执行完毕后删除脚本
-
-    # 询问是否重启
-    read -p "tcpx.sh 脚本已执行完毕，是否立即重启服务器以应用更改？ (y/N): " reboot_choice
-    if [[ "$reboot_choice" == "y" || "$reboot_choice" == "Y" ]]; then
-      echo "正在重启服务器..."
-      sudo reboot
-    fi
-  else
-    echo "下载 tcpx.sh 脚本失败，无法开启/配置 BBR 加速。"
-  fi
-  read -n 1 -s -p "按任意键继续..."
 }
 
 # 函数：测试脚本合集子菜单
@@ -282,6 +250,46 @@ fuqiang_menu() {
         ;;
     esac
   done
+}
+
+# 函数：更新脚本
+update_script() {
+  clear_screen
+  echo "正在检查更新..."
+  local latest_version_url="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${SCRIPT_NAME}"
+
+  if curl -s --head --request GET "$latest_version_url" | grep "200 OK" > /dev/null 2>&1; then
+    echo "发现新版本，正在下载..."
+    curl -o "$0.new" -L "$latest_version_url"
+    if [ $? -eq 0 ]; then
+      echo "新版本下载完成，正在替换旧版本..."
+      mv "$0.new" "$0"
+      chmod +x "$0"
+      echo "脚本已成功更新！请重新运行脚本以使用新版本。"
+    else
+      echo "下载新版本失败。"
+    fi
+  else
+    echo "当前已是最新版本。"
+  fi
+  read -n 1 -s -p "按任意键返回主菜单..."
+}
+
+# 函数：显示主菜单
+show_main_menu() {
+  clear_screen
+  echo ""
+  echo "Debian 12 一键配置交互式脚本"
+  echo "作者：s0meones"
+  echo ""
+  echo "请选择要执行的操作："
+  echo "1. 配置系统环境"
+  echo "2. 测试脚本合集"
+  echo "3. 富强专用"
+  echo "4. 更新脚本"
+  echo "0. 退出脚本"
+  echo ""
+  read -p "请输入指令数字并按 Enter 键: " main_choice
 }
 
 # 主循环
