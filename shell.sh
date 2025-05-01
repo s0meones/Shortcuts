@@ -90,26 +90,27 @@ enable_vanilla_bbr() {
   # 检查内核版本是否支持 BBR (通常 Linux 4.9 及以上)
   kernel_version=$(uname -r | awk -F'.' '{print $1"."$2}')
   if (( $(echo "$kernel_version" | bc -l) >= $(echo "4.9" | bc -l) )); then
-    # 尝试设置 BBR
-    if sudo sysctl -w net.core.default_qdisc=tcp_cubic; then
-      echo "成功设置默认队列规则为 tcp_cubic。"
-      if sudo sysctl -w net.ipv4.tcp_congestion_control=bbr; then
-        echo "成功开启 BBR 加速。"
-        # 持久化配置
-        sudo sh -c "echo 'net.core.default_qdisc=tcp_cubic' >> /etc/sysctl.conf"
-        sudo sh -c "echo 'net.ipv4.tcp_congestion_control=bbr' >> /etc/sysctl.conf"
-        sudo sysctl -p
+    # 尝试开启 BBR
+    if sudo sysctl -w net.ipv4.tcp_congestion_control=bbr; then
+      echo "成功开启 BBR 加速。"
+      # 持久化配置
+      sudo sh -c "echo 'net.ipv4.tcp_congestion_control=bbr' >> /etc/sysctl.conf"
+      sudo sysctl -p
 
+      # 检查是否成功启用 BBR
+      current_bbr=$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')
+      if [ "$current_bbr" == "bbr" ]; then
+        echo "BBR 已成功激活。"
         # 询问是否启用 BBR + FQ
         read -p "是否同时启用 BBR + FQ 策略？ (y/N): " enable_fq
         if [[ "$enable_fq" == "y" || "$enable_fq" == "Y" ]]; then
           enable_bbr_fq
         fi
       else
-        echo "开启 BBR 加速失败。"
+        echo "警告：BBR 激活可能失败，请检查系统日志。"
       fi
     else
-      echo "设置默认队列规则为 tcp_cubic 失败。"
+      echo "开启 BBR 加速失败。"
     fi
   else
     echo "当前内核版本 ($kernel_version) 可能不支持 BBR，跳过。"
@@ -117,7 +118,7 @@ enable_vanilla_bbr() {
   read -n 1 -s -p "按任意键继续..."
 }
 
-# 函数：开启 BBR + FQ 策略 (保持不变)
+# 函数：开启 BBR + FQ 策略
 enable_bbr_fq() {
   echo "正在尝试开启 BBR + FQ 策略..."
   sudo sysctl -w net.core.default_qdisc=fq
@@ -158,7 +159,7 @@ open_all_ports() {
   fi
 }
 
-# 函数：切换 IPv4/IPv6 优先 (保持不变)
+# 函数：切换 IPv4/IPv6 优先
 toggle_ipv4_ipv6_preference() {
   clear_screen
   # 检查 /proc/sys/net/ipv6/prefer_inet6 文件是否存在
@@ -185,7 +186,7 @@ toggle_ipv4_ipv6_preference() {
   fi
 }
 
-# 函数：测试脚本合集子菜单 (保持不变)
+# 函数：测试脚本合集子菜单
 test_scripts_menu() {
   clear_screen
   echo "测试脚本合集："
