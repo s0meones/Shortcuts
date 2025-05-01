@@ -8,109 +8,72 @@ GITHUB_USER="s0meones" # 请替换为您的 GitHub 用户名
 GITHUB_REPO="Shorcuts"     # 请替换为您的 GitHub 仓库名
 SCRIPT_NAME=$(basename "$0")
 
-# 定义颜色变量 (如果脚本中其他地方有用到)
-gl_huang='\033[0;33m'
-gl_bai='\033[0;37m'
-
 # 函数：清空屏幕
 clear_screen() {
   clear
 }
 
-# 函数：发送统计信息 (占位符，如果您的脚本有实际的统计上报逻辑)
-send_stats() {
-  echo "统计: $1" # 替换为您的实际统计上报代码
+# 函数：显示主菜单
+show_main_menu() {
+  clear_screen
+  echo ""
+  echo "Debian 12 一键配置交互式脚本"
+  echo "作者：s0meones"
+  echo ""
+  echo "请选择要执行的操作："
+  echo "1. 配置系统环境"
+  echo "2. 测试脚本合集"
+  echo "3. 富强专用"
+  echo "4. 更新脚本"
+  echo "0. 退出脚本"
+  echo ""
+  read -p "请输入指令数字并按 Enter 键: " main_choice
 }
 
 # 函数：检查是否以 root 身份运行
 check_root() {
   if [[ "$EUID" -ne 0 ]]; then
-    echo -e "${gl_huang}错误：请以 root 用户身份运行此脚本。${gl_bai}"
+    echo "错误：请以 root 用户身份运行此脚本。"
     exit 1
   fi
 }
 
-# 函数：切换 IPv4/IPv6 优先子菜单
-ipv4_ipv6_priority_menu() {
-  check_root # 再次确保 root 权限
-  send_stats "设置v4/v6优先级"
-  while true; do
-    clear_screen
-    echo "设置v4/v6优先级"
-    echo "------------------------"
-    local ipv6_disabled=$(sysctl -n net.ipv6.conf.all.disable_ipv6)
-
-    if [ "$ipv6_disabled" -eq 1 ]; then
-      echo -e "当前网络优先级设置: ${gl_huang}IPv4${gl_bai} 优先"
-    else
-      echo -e "当前网络优先级设置: ${gl_huang}IPv6${gl_bai} 优先"
-    fi
-    echo ""
-    echo "------------------------"
-    echo "1. IPv4 优先          2. IPv6 优先          3. IPv6 修复工具"
-    echo "------------------------"
-    echo "0. 返回上一级选单"
-    echo "------------------------"
-    read -e -p "选择优先的网络: " choice
-
-    case $choice in
-      1)
-        sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 > /dev/null 2>&1
-        echo "已切换为 IPv4 优先"
-        send_stats "已切换为 IPv4 优先"
-        ;;
-      2)
-        sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0 > /dev/null 2>&1
-        echo "已切换为 IPv6 优先"
-        send_stats "已切换为 IPv6 优先"
-        ;;
-
-      3)
-        clear
-        bash <(curl -L -s jhb.ovh/jb/v6.sh)
-        echo "该功能由jhb大神提供，感谢他！"
-        send_stats "ipv6修复"
-        read -n 1 -s -p "按任意键返回 v4/v6 优先级菜单..."
-        ;;
-
-      0)
-        break
-        ;;
-
-      *)
-        echo "无效的选择，请重新输入。"
-        sleep 2
-        ;;
-
-    esac
-  done
+# 函数：发送统计信息 (占位符)
+send_stats() {
+  echo "统计: $1"
 }
 
-# 函数：使用 tcpx.sh 开启/配置 BBR 加速
-enable_bbr_with_tcpx() {
+# 函数：更新脚本
+update_script() {
   clear_screen
-  echo "正在下载并执行 tcpx.sh 脚本以开启/配置 BBR 加速..."
-  wget -O tcpx.sh "https://github.com/ylx2016/Linux-NetSpeed/raw/master/tcpx.sh"
-  if [ -f tcpx.sh ]; then
-    chmod +x tcpx.sh
-    ./tcpx.sh
-    rm -f tcpx.sh # 执行完毕后删除脚本
+  echo "正在检查更新..."
+  local latest_version_url="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${SCRIPT_NAME}"
+  local current_script_path="$0"
+  local latest_script_path="$0.latest"
 
-    # 询问是否重启
-    read -p "tcpx.sh 脚本已执行完毕，是否立即重启服务器以应用更改？ (y/N): " reboot_choice
-    if [[ "$reboot_choice" == "y" || "$reboot_choice" == "Y" ]]; then
-      echo "正在重启服务器..."
-      sudo reboot
+  # 下载最新的脚本
+  curl -o "$latest_script_path" -L "$latest_version_url"
+
+  if [ $? -eq 0 ]; then
+    # 比较两个文件的内容
+    if ! cmp -s "$current_script_path" "$latest_script_path"; then
+      echo "发现新版本，正在替换旧版本..."
+      mv "$latest_script_path" "$current_script_path"
+      chmod +x "$current_script_path"
+      echo "脚本已成功更新！请重新运行脚本以使用新版本。"
+    else
+      echo "当前已是最新版本。"
+      rm -f "$latest_script_path" # 删除临时文件
     fi
   else
-    echo "下载 tcpx.sh 脚本失败，无法开启/配置 BBR 加速。"
+    echo "下载最新版本失败。"
   fi
-  read -n 1 -s -p "按任意键继续..."
+  read -n 1 -s -p "按任意键返回主菜单..."
 }
 
 # 函数：配置系统环境子菜单
 config_system_env() {
-  check_root # 确保在进入配置菜单时已是 root
+  check_root
   while true; do
     clear_screen
     echo "配置系统环境："
@@ -152,6 +115,83 @@ config_system_env() {
       *)
         echo "无效的指令，请重新输入。"
         ;;
+    esac
+  done
+}
+
+# 函数：使用 tcpx.sh 开启/配置 BBR 加速 (被 config_system_env 调用)
+enable_bbr_with_tcpx() {
+  clear_screen
+  echo "正在下载并执行 tcpx.sh 脚本以开启/配置 BBR 加速..."
+  wget -O tcpx.sh "https://github.com/ylx2016/Linux-NetSpeed/raw/master/tcpx.sh"
+  if [ -f tcpx.sh ]; then
+    chmod +x tcpx.sh
+    ./tcpx.sh
+    rm -f tcpx.sh # 执行完毕后删除脚本
+
+    read -p "tcpx.sh 脚本已执行完毕，是否立即重启服务器以应用更改？ (y/N): " reboot_choice
+    if [[ "$reboot_choice" == "y" || "$reboot_choice" == "Y" ]]; then
+      echo "正在重启服务器..."
+      sudo reboot
+    fi
+  else
+    echo "下载 tcpx.sh 脚本失败，无法开启/配置 BBR 加速。"
+  fi
+  read -n 1 -s -p "按任意键继续..."
+}
+
+# 函数：切换 IPv4/IPv6 优先子菜单 (被 config_system_env 调用)
+ipv4_ipv6_priority_menu() {
+  check_root
+  send_stats "设置v4/v6优先级"
+  while true; do
+    clear_screen
+    echo "设置v4/v6优先级"
+    echo "------------------------"
+    local ipv6_disabled=$(sysctl -n net.ipv6.conf.all.disable_ipv6)
+
+    if [ "$ipv6_disabled" -eq 1 ]; then
+      echo "当前网络优先级设置: IPv4 优先"
+    else
+      echo "当前网络优先级设置: IPv6 优先"
+    fi
+    echo ""
+    echo "------------------------"
+    echo "1. IPv4 优先          2. IPv6 优先          3. IPv6 修复工具"
+    echo "------------------------"
+    echo "0. 返回上一级选单"
+    echo "------------------------"
+    read -e -p "选择优先的网络: " choice
+
+    case $choice in
+      1)
+        sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 > /dev/null 2>&1
+        echo "已切换为 IPv4 优先"
+        send_stats "已切换为 IPv4 优先"
+        ;;
+      2)
+        sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0 > /dev/null 2>&1
+        echo "已切换为 IPv6 优先"
+        send_stats "已切换为 IPv6 优先"
+        ;;
+
+      3)
+        clear
+        bash <(curl -L -s jhb.ovh/jb/v6.sh)
+        echo "该功能由jhb大神提供，感谢他！"
+        send_stats "ipv6修复"
+        read -n 1 -s -p "按任意键返回 v4/v6 优先级菜单..."
+        ;;
+
+      0)
+        break
+        ;;
+
+      *)
+        echo "无效的选择，请重新输入。"
+        sleep 2
+        ;;
+
     esac
   done
 }
@@ -251,46 +291,6 @@ fuqiang_menu() {
         ;;
     esac
   done
-}
-
-# 函数：更新脚本
-update_script() {
-  clear_screen
-  echo "正在检查更新..."
-  local latest_version_url="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${SCRIPT_NAME}"
-
-  if curl -s --head --request GET "$latest_version_url" | grep "200 OK" > /dev/null 2>&1; then
-    echo "发现新版本，正在下载..."
-    curl -o "$0.new" -L "$latest_version_url"
-    if [ $? -eq 0 ]; then
-      echo "新版本下载完成，正在替换旧版本..."
-      mv "$0.new" "$0"
-      chmod +x "$0"
-      echo "脚本已成功更新！请重新运行脚本以使用新版本。"
-    else
-      echo "下载新版本失败。"
-    fi
-  else
-    echo "当前已是最新版本。"
-  fi
-  read -n 1 -s -p "按任意键返回主菜单..."
-}
-
-# 函数：显示主菜单
-show_main_menu() {
-  clear_screen
-  echo ""
-  echo "Debian 12 一键配置交互式脚本"
-  echo "作者：s0meones"
-  echo ""
-  echo "请选择要执行的操作："
-  echo "1. 配置系统环境"
-  echo "2. 测试脚本合集"
-  echo "3. 富强专用"
-  echo "4. 更新脚本"
-  echo "0. 退出脚本"
-  echo ""
-  read -p "请输入指令数字并按 Enter 键: " main_choice
 }
 
 # 主循环
