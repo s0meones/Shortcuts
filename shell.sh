@@ -54,23 +54,31 @@ update_script() {
   local latest_version_url="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${SCRIPT_NAME}"
   local current_script_path="$0"
   local latest_script_path="$0.latest"
+  local download_status
 
-  # 下载最新的脚本
+  # 下载最新的脚本到临时文件
   curl -o "$latest_script_path" -L "$latest_version_url"
+  download_status=$?
 
-  if [ $? -eq 0 ]; then
-    # 比较两个文件的内容
-    if ! cmp -s "$current_script_path" "$latest_script_path"; then
-      echo "发现新版本，正在替换旧版本..."
-      mv "$latest_script_path" "$current_script_path"
-      chmod +x "$current_script_path"
-      echo -e "\n脚本已成功更新！请退出并重新运行脚本以使用新版本。\n" # 添加更新后提示
+  if [ "$download_status" -eq 0 ]; then
+    # 检查临时文件是否为空或者包含错误信息
+    if [ -s "$latest_script_path" ] && ! grep -q "404 Not Found" "$latest_script_path"; then
+      # 比较两个文件的内容
+      if ! cmp -s "$current_script_path" "$latest_script_path"; then
+        echo "发现新版本，正在替换旧版本..."
+        mv "$latest_script_path" "$current_script_path"
+        chmod +x "$current_script_path"
+        echo -e "\n脚本已成功更新！请退出并重新运行脚本以使用新版本。\n"
+      else
+        echo "当前已是最新版本。"
+        rm -f "$latest_script_path" # 删除临时文件
+      fi
     else
-      echo "当前已是最新版本。"
-      rm -f "$latest_script_path" # 删除临时文件
+      echo "下载的最新版本内容无效，更新失败。"
+      rm -f "$latest_script_path" # 删除无效的临时文件
     fi
   else
-    echo "下载最新版本失败。"
+    echo "下载最新版本失败 (HTTP 状态码: $download_status)。"
   fi
   read -n 1 -s -p "按任意键返回主菜单..."
 }
