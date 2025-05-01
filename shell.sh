@@ -3,7 +3,7 @@
 # 设置脚本在出错时立即退出
 set -e
 
-# 定义脚本在 GitHub 仓库中的信息
+# 定义脚本在 GitHub 仓库中的信息 (不再使用，但保留变量定义)
 GITHUB_USER="s0meones" # 请替换为您的 GitHub 用户名
 GITHUB_REPO="Shorcuts"     # 请替换为您的 GitHub 仓库名
 SCRIPT_NAME=$(basename "$0")
@@ -24,7 +24,6 @@ show_main_menu() {
   echo "1. 配置系统环境"
   echo "2. 测试脚本合集"
   echo "3. 富强专用"
-  echo "4. 更新脚本"
   echo "0. 退出脚本"
   echo ""
   read -p "请输入指令数字并按 Enter 键: " main_choice
@@ -47,51 +46,19 @@ send_stats() {
 open_all_ports() {
   check_root
   send_stats "开放端口"
-  sudo iptables -P INPUT ACCEPT
-  sudo iptables -P FORWARD ACCEPT
-  sudo iptables -P OUTPUT ACCEPT
-  sudo iptables -F
-  sudo rm -f /etc/iptables/rules.v4 /etc/iptables/rules.v6
-  sudo systemctl stop ufw firewalld iptables-persistent iptables-services 2>/dev/null || true
-  sudo systemctl disable ufw firewalld iptables-persistent iptables-services 2>/dev/null || true
-  echo "端口已全部开放"
-  read -n 1 -s -p "按任意键继续..."
-}
-
-# 函数：更新脚本
-update_script() {
-  clear_screen
-  echo "正在检查更新..."
-  local latest_version_url="https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/${SCRIPT_NAME}"
-  local current_script_path="$0"
-  local latest_script_path="$0.latest"
-  local download_status
-
-  # 下载最新的脚本到临时文件
-  curl -o "$latest_script_path" -L "$latest_version_url"
-  download_status=$?
-
-  if [ "$download_status" -eq 0 ]; then
-    # 检查临时文件是否为空或者包含错误信息
-    if [ -s "$latest_script_path" ] && ! grep -q "404 Not Found" "$latest_script_path"; then
-      # 比较两个文件的内容
-      if ! cmp -s "$current_script_path" "$latest_script_path"; then
-        echo "发现新版本，正在替换旧版本..."
-        mv "$latest_script_path" "$current_script_path"
-        chmod +x "$current_script_path"
-        echo -e "\n脚本已成功更新！请退出并重新运行脚本以使用新版本。\n"
-      else
-        echo "当前已是最新版本。"
-        rm -f "$latest_script_path" # 删除临时文件
-      fi
-    else
-      echo "下载的最新版本内容无效，更新失败。"
-      rm -f "$latest_script_path" # 删除无效的临时文件
-    fi
+  if command -v iptables >/dev/null 2>&1; then
+    sudo iptables -P INPUT ACCEPT
+    sudo iptables -P FORWARD ACCEPT
+    sudo iptables -P OUTPUT ACCEPT
+    sudo iptables -F
+    sudo rm -f /etc/iptables/rules.v4 /etc/iptables/rules.v6
+    sudo systemctl stop ufw firewalld iptables-persistent iptables-services 2>/dev/null || true
+    sudo systemctl disable ufw firewalld iptables-persistent iptables-services 2>/dev/null || true
+    echo "端口已全部开放"
   else
-    echo "下载最新版本失败 (HTTP 状态码: $download_status)。"
+    echo "错误：iptables 命令未找到，请确保已安装。"
   fi
-  read -n 1 -s -p "按任意键返回主菜单..."
+  read -n 1 -s -p "按任意键继续..."
 }
 
 # 函数：配置系统环境子菜单
@@ -334,7 +301,6 @@ while true; do
     1) config_system_env ;;
     2) test_scripts_menu ;;
     3) fuqiang_menu ;;
-    4) update_script ;; # 调用更新脚本函数
     0) echo "退出脚本。"; exit 0 ;;
     *) echo "无效的指令，请重新输入。" ;;
   esac
