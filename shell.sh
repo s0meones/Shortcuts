@@ -14,13 +14,13 @@ show_main_menu() {
   echo "请选择要执行的操作："
   echo "1. 配置系统环境"
   echo "2. 测试脚本合集"
-  echo "3. 开启 BBR v3 加速"
+  echo "3. 更新本脚本"
   echo "0. 退出脚本"
   echo ""
   read -p "请输入指令数字并按 Enter 键: " main_choice
 }
 
-# 函数：更新本脚本 (已去除，因为在主菜单中)
+# 函数：更新本脚本
 update_script() {
   echo "更新本脚本功能需要配置 GitHub 仓库信息才能自动完成。"
   echo "请手动从 GitHub 下载最新版本并替换。"
@@ -28,15 +28,16 @@ update_script() {
   echo ""
 }
 
-# 函数：配置系统环境子菜单 (部分功能已移动到主菜单)
+# 函数：配置系统环境子菜单
 config_system_env() {
   while true; do
     echo ""
     echo "配置系统环境："
     echo "1. 更新系统 (apt update && apt upgrade -y)"
     echo "2. 安装系统必要环境 (apt install unzip curl wget git sudo -y)"
-    echo "5. 开放所有端口 (清空防火墙规则)"
-    echo "6. 切换 IPv4/IPv6 优先"
+    echo "3. 开启 BBR v3 加速"
+    echo "4. 开放所有端口 (清空防火墙规则)"
+    echo "5. 切换 IPv4/IPv6 优先"
     echo "9. 返回主菜单"
     echo "0. 退出脚本"
     echo ""
@@ -53,10 +54,13 @@ config_system_env() {
         sudo apt install unzip curl wget git sudo -y
         echo "必要环境安装完成。"
         ;;
-      5)
+      3)
+        enable_bbrv3
+        ;;
+      4)
         open_all_ports
         ;;
-      6)
+      5)
         toggle_ipv4_ipv6_preference
         ;;
       9)
@@ -140,19 +144,24 @@ open_all_ports() {
 
 # 函数：切换 IPv4/IPv6 优先
 toggle_ipv4_ipv6_preference() {
-  current_preference=$(sysctl net.ipv6.prefer_inet6 | awk '{print $3}')
-  if [ "$current_preference" -eq 0 ]; then
-    echo "当前 IPv4 优先。切换到 IPv6 优先..."
-    sudo sysctl -w net.ipv6.prefer_inet6=1
-    sudo sh -c "echo 'net.ipv6.prefer_inet6=1' >> /etc/sysctl.conf"
-    sudo sysctl -p
-    echo "已切换到 IPv6 优先。"
+  # 检查 /proc/sys/net/ipv6/prefer_inet6 文件是否存在
+  if [ -f /proc/sys/net/ipv6/prefer_inet6 ]; then
+    current_preference=$(sysctl net.ipv6.prefer_inet6 | awk '{print $3}')
+    if [ "$current_preference" -eq 0 ]; then
+      echo "当前 IPv4 优先。切换到 IPv6 优先..."
+      sudo sysctl -w net.ipv6.prefer_inet6=1
+      sudo sh -c "echo 'net.ipv6.prefer_inet6=1' >> /etc/sysctl.conf"
+      sudo sysctl -p
+      echo "已切换到 IPv6 优先。"
+    else
+      echo "当前 IPv6 优先。切换到 IPv4 优先..."
+      sudo sysctl -w net.ipv6.prefer_inet6=0
+      sudo sh -c "echo 'net.ipv6.prefer_inet6=0' >> /etc/sysctl.conf"
+      sudo sysctl -p
+      echo "已切换到 IPv4 优先。"
+    fi
   else
-    echo "当前 IPv6 优先。切换到 IPv4 优先..."
-    sudo sysctl -w net.ipv6.prefer_inet6=0
-    sudo sh -c "echo 'net.ipv6.prefer_inet6=0' >> /etc/sysctl.conf"
-    sudo sysctl -p
-    echo "已切换到 IPv4 优先。"
+    echo "警告：IPv6 功能可能未启用，无法切换 IPv4/IPv6 优先。"
   fi
 }
 
@@ -196,7 +205,7 @@ while true; do
   case "$main_choice" in
     1) config_system_env ;;
     2) test_scripts_menu ;;
-    3) enable_bbrv3 ;; # 直接调用开启 BBR v3 的函数
+    3) update_script ;;
     0) echo "退出脚本。"; exit 0 ;;
     *) echo "无效的指令，请重新输入。" ;;
   esac
