@@ -42,6 +42,34 @@ send_stats() {
   echo "统计: $1"
 }
 
+# 函数：添加虚拟内存
+add_swap() {
+  check_root
+  local size_mb="$1"
+  local swap_file="/swapfile"
+
+  echo "开始创建 ${size_mb}MB 的虚拟内存..."
+  sudo fallocate -l "${size_mb}M" "$swap_file"
+  if [ $? -ne 0 ]; then
+    echo "创建交换文件失败。"
+    return 1
+  fi
+  sudo chmod 600 "$swap_file"
+  sudo mkswap "$swap_file"
+  if [ $? -ne 0 ]; then
+    echo "设置交换文件失败。"
+    return 1
+  fi
+  sudo swapon "$swap_file"
+  if [ $? -ne 0 ]; then
+    echo "启用交换文件失败。"
+    return 1
+  fi
+  echo "/swapfile swap swap defaults 0 0" | sudo tee -a /etc/fstab
+  echo "成功设置 ${size_mb}MB 虚拟内存。"
+  read -n 1 -s -p "按任意键继续..."
+}
+
 # 函数：开放所有端口
 open_all_ports() {
   check_root
@@ -56,9 +84,75 @@ open_all_ports() {
     sudo systemctl disable ufw firewalld iptables-persistent iptables-services 2>/dev/null || true
     echo "端口已全部开放"
   else
-    echo "错误：iptables 命令未找到，请确保已安装。"
+    read -p "iptables 命令未找到，是否安装？ (y/N): " install_iptables
+    if [[ "$install_iptables" == "y" || "$install_iptables" == "Y" ]]; then
+      echo "正在安装 iptables..."
+      sudo apt update
+      sudo apt install -y iptables
+      if command -v iptables >/dev/null 2>&1; then
+        sudo iptables -P INPUT ACCEPT
+        sudo iptables -P FORWARD ACCEPT
+        sudo iptables -P OUTPUT ACCEPT
+        sudo iptables -F
+        sudo rm -f /etc/iptables/rules.v4 /etc/iptables/rules.v6
+        sudo systemctl stop ufw firewalld iptables-persistent iptables-services 2>/dev/null || true
+        sudo systemctl disable ufw firewalld iptables-persistent iptables-services 2>/dev/null || true
+        echo "iptables 安装完成，端口已全部开放"
+      else
+        echo "iptables 安装失败，无法开放端口。"
+      fi
+    else
+      echo "取消开放所有端口。"
+    fi
   fi
   read -n 1 -s -p "按任意键继续..."
+}
+
+# 函数：设置虚拟内存子菜单
+set_swap() {
+  check_root
+  send_stats "设置虚拟内存"
+  while true; do
+    clear_screen
+    echo "设置虚拟内存"
+    local swap_used=$(free -m | awk 'NR==3{print $3}')
+    local swap_total=$(free -m | awk 'NR==3{print $2}')
+    local swap_info=$(free -m | awk 'NR==3{used=$3; total=$2; if (total == 0) {percentage=0} else {percentage=used*100/total}; printf "%dM/%dM (%d%%)", used, total, percentage}')
+
+    echo "当前虚拟内存: $swap_info"
+    echo "------------------------"
+    echo "1. 分配1024M          2. 分配2048M          3. 分配4096M          4. 自定义大小"
+    echo "------------------------"
+    echo "0. 返回上一级选单"
+    echo "------------------------"
+    read -e -p "请输入你的选择: " choice
+
+    case "$choice" in
+      1)
+        send_stats "已设置1G虚拟内存"
+        add_swap 1024
+        ;;
+      2)
+        send_stats "已设置2G虚拟内存"
+        add_swap 2048
+        ;;
+      3)
+        send_stats "已设置4G虚拟内存"
+        add_swap 4096
+        ;;
+      4)
+        read -e -p "请输入虚拟内存大小（单位M）: " new_swap
+        add_swap "$new_swap"
+        send_stats "已设置自定义虚拟内存"
+        ;;
+      0)
+        break
+        ;;
+      *)
+        echo "无效的选择，请重新输入。"
+        ;;
+    esac
+  done
 }
 
 # 函数：配置系统环境子菜单
@@ -72,6 +166,7 @@ config_system_env() {
     echo "3. 开启/配置 BBR 加速"
     echo "4. 切换 IPv4/IPv6 优先"
     echo "5. 开放所有端口"
+    echo "6. 设置虚拟内存"
     echo "9. 返回主菜单"
     echo "0. 退出脚本"
     echo ""
@@ -98,6 +193,9 @@ config_system_env() {
         ;;
       5)
         open_all_ports
+        ;;
+      6)
+        set_swap
         ;;
       9)
         break # 返回主菜单
