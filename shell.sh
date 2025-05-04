@@ -522,8 +522,11 @@ update_script() {
 
     # 替换当前脚本文件
     if mv "$temp_file" "$SCRIPT_PATH"; then
-      echo "脚本更新成功！请重新运行脚本以使用最新版本。"
-      exit 0 # 更新成功后退出当前脚本
+      # 添加执行权限
+      chmod +x "$SCRIPT_PATH"
+      echo "脚本更新成功！正在启动新版本脚本..."
+      # 使用 exec 替换当前进程为新脚本进程
+      exec "$SCRIPT_PATH"
     else
       echo "错误：脚本更新失败！无法替换原文件 '$SCRIPT_PATH'。"
       echo "请检查文件权限或手动复制 '$temp_file' 到 '$SCRIPT_PATH'。"
