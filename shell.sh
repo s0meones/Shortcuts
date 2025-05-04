@@ -3,6 +3,9 @@
 # 设置脚本在出错时立即退出
 set -e
 
+# 获取当前脚本的绝对路径
+SCRIPT_PATH="$(readlink -f "$0")"
+
 # 函数：清空屏幕
 clear_screen() {
   clear
@@ -19,6 +22,7 @@ show_main_menu() {
   echo "1. 配置系统环境"
   echo "2. 测试脚本合集"
   echo "3. 富强专用"
+  echo "9. 更新脚本" # 添加更新脚本选项
   echo "0. 退出脚本"
   echo ""
   read -p "请输入指令数字并按 Enter 键: " main_choice
@@ -74,6 +78,7 @@ open_all_ports() {
     fi
   fi
   read -n 1 -s -p "按任意键继续..."
+  clear_screen # 添加清屏
 }
 
 # 函数：配置系统环境子菜单
@@ -98,21 +103,27 @@ config_system_env() {
         sudo apt upgrade -y
         echo "系统更新完成。"
         read -n 1 -s -p "按任意键继续..."
+        clear_screen # 添加清屏
         ;;
       2)
         echo "正在安装必要环境，请稍候..."
         sudo apt install unzip curl wget git sudo -y
         echo "必要环境安装完成。"
         read -n 1 -s -p "按任意键继续..."
+        clear_screen # 添加清屏
         ;;
       3)
         enable_bbr_with_tcpx
+        # enable_bbr_with_tcpx 函数内部已处理清屏
         ;;
       4)
         ipv4_ipv6_priority_menu
+        # ipv4_ipv6_priority_menu 函数内部已处理清屏
+        clear_screen # 从子菜单返回后清屏
         ;;
       5)
         open_all_ports
+        # open_all_ports 函数内部已处理清屏
         ;;
       9)
         break # 返回主菜单
@@ -123,6 +134,7 @@ config_system_env() {
         ;;
       *)
         echo "无效的指令，请重新输入。"
+        # 无效指令的提示后，不暂停，直接进入下一轮循环，下一轮循环会先清屏，无需在此添加清屏
         ;;
     esac
   done
@@ -147,6 +159,7 @@ enable_bbr_with_tcpx() {
     echo "下载 tcpx.sh 脚本失败，无法开启/配置 BBR 加速。"
   fi
   read -n 1 -s -p "按任意键继续..."
+  clear_screen # 添加清屏
 }
 
 # 函数：切换 IPv4/IPv6 优先子菜单 (被 config_system_env 调用)
@@ -166,7 +179,7 @@ ipv4_ipv6_priority_menu() {
     fi
     echo ""
     echo "------------------------"
-    echo "1. IPv4 优先          2. IPv6 优先          3. IPv6 修复工具"
+    echo "1. IPv4 优先           2. IPv6 优先           3. IPv6 修复工具"
     echo "------------------------"
     echo "0. 返回上一级选单"
     echo "------------------------"
@@ -177,19 +190,24 @@ ipv4_ipv6_priority_menu() {
         sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 > /dev/null 2>&1
         echo "已切换为 IPv4 优先"
         send_stats "已切换为 IPv4 优先"
+        read -n 1 -s -p "按任意键继续..." # 添加暂停
+        clear_screen # 添加清屏
         ;;
       2)
         sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0 > /dev/null 2>&1
         echo "已切换为 IPv6 优先"
         send_stats "已切换为 IPv6 优先"
+        read -n 1 -s -p "按任意键继续..." # 添加暂停
+        clear_screen # 添加清屏
         ;;
 
       3)
-        clear
+        clear_screen # 调用外部脚本前先清屏，保持界面整洁
         bash <(curl -L -s jhb.ovh/jb/v6.sh)
         echo "该功能由jhb大神提供，感谢他！"
         send_stats "ipv6修复"
         read -n 1 -s -p "按任意键返回 v4/v6 优先级菜单..."
+        clear_screen # 添加清屏
         ;;
 
       0)
@@ -199,6 +217,7 @@ ipv4_ipv6_priority_menu() {
       *)
         echo "无效的选择，请重新输入。"
         sleep 2
+        clear_screen # 添加清屏
         ;;
 
     esac
@@ -222,32 +241,44 @@ test_scripts_menu() {
         echo ""
         read -p "确定要运行 NodeQuality 测试吗？ (y/N): " confirm
         if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+          clear_screen # 调用外部脚本前先清屏
           echo "正在运行 NodeQuality 测试脚本，请稍候..."
           bash <(curl -sL https://run.NodeQuality.com)
           echo "NodeQuality 测试完成。"
-          read -n 1 -s -p "按任意键返回测试脚本合集菜单..."
+          # 移除暂停和清屏，直接退出脚本
+          exit 0
+        else
+          clear_screen # 如果取消，清屏并重新显示菜单
         fi
-        ;;
+        ;; # 注意：这里移除了 ;; 因为上面有 exit
       2)
         echo ""
         read -p "确定要运行 IP 质量体检吗？ (y/N): " confirm
         if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+          clear_screen # 调用外部脚本前先清屏
           echo "正在运行 IP 质量体检脚本，请稍候..."
           bash <(curl -sL IP.Check.Place)
           echo "IP 质量体检完成。"
-          read -n 1 -s -p "按任意键返回测试脚本合集菜单..."
+          # 移除暂停和清屏，直接退出脚本
+          exit 0
+        else
+          clear_screen # 如果取消，清屏并重新显示菜单
         fi
-        ;;
+        ;; # 注意：这里移除了 ;; 因为上面有 exit
       3)
         echo ""
         read -p "确定要运行 融合怪测试吗？ (y/N): " confirm
         if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
+          clear_screen # 调用外部脚本前先清屏
           echo "正在运行 融合怪测试脚本，请稍候..."
           bash <(wget -qO- --no-check-certificate https://gitlab.com/spiritysdx/za/-/raw/main/ecs.sh)
           echo "融合怪测试完成。"
-          read -n 1 -s -p "按任意键返回测试脚本合集菜单..."
+          # 移除暂停和清屏，直接退出脚本
+          exit 0
+        else
+          clear_screen # 如果取消，清屏并重新显示菜单
         fi
-        ;;
+        ;; # 注意：这里移除了 ;; 因为上面有 exit
       9)
         break # 返回主菜单
         ;;
@@ -257,6 +288,7 @@ test_scripts_menu() {
         ;;
       *)
         echo "无效的指令，请重新输入。"
+        # 无效指令的提示后，不暂停，直接进入下一轮循环，下一轮循环会先清屏，无需在此添加清屏
         ;;
     esac
   done
@@ -276,31 +308,39 @@ fuqiang_menu() {
     read -p "请输入指令数字并按 Enter 键: " sub_choice_fq
     case "$sub_choice_fq" in
       1)
+        clear_screen # 调用外部脚本前先清屏
         echo "正在安装 3x-ui 面板，请稍候..."
         bash <(curl -Ls https://raw.githubusercontent.com/mhsanaei/3x-ui/master/install.sh)
         echo "3x-ui 面板安装完成。"
         echo "操作已完成，脚本即将结束。"
+        # 这里是退出脚本，不需要清屏和返回菜单
         exit 0
         ;;
       2)
+        clear_screen # 调用外部脚本前先清屏
         echo "正在安装八合一脚本，请稍候..."
         wget -P /root -N --no-check-certificate "https://raw.githubusercontent.com/mack-a/v2ray-agent/master/install.sh" && chmod 700 /root/install.sh && /root/install.sh
         echo "八合一脚本安装完成。"
         echo "操作已完成，脚本即将结束。"
+        # 这里是退出脚本，不需要清屏和返回菜单
         exit 0
         ;;
       3)
+        clear_screen # 调用外部脚本前先清屏
         echo "正在安装 snell，请稍候..."
         wget https://raw.githubusercontent.com/jinqians/snell.sh/main/snell.sh -O snell.sh && chmod +x snell.sh && ./snell.sh
         echo "snell 安装完成。"
         echo "操作已完成，脚本即将结束。"
+        # 这里是退出脚本，不需要清屏和返回菜单
         exit 0
         ;;
       4)
+        clear_screen # 调用外部脚本前先清屏
         echo "正在安装 realm & gost 一键转发脚本，请稍候..."
         wget --no-check-certificate -O gost.sh https://raw.githubusercontent.com/qqrrooty/EZgost/main/gost.sh && chmod +x gost.sh && ./gost.sh
         echo "realm & gost 一键转发脚本安装完成。"
         echo "操作已完成，脚本即将结束。"
+        # 这里是退出脚本，不需要清屏和返回菜单
         exit 0
         ;;
       0)
@@ -308,10 +348,47 @@ fuqiang_menu() {
         ;;
       *)
         echo "无效的指令，请重新输入。"
+        # 无效指令的提示后，不暂停，直接进入下一轮循环，下一轮循环会先清屏，无需在此添加清屏
         ;;
     esac
   done
 }
+
+# 函数：更新脚本
+update_script() {
+  clear_screen
+  echo "正在检查并更新脚本..."
+
+  # *** 请将此处替换为您脚本在 GitHub 上的 Raw URL ***
+  GITHUB_RAW_URL="https://raw.githubusercontent.com/s0meones/Shortcuts/main/shell.sh"
+  # *****************************************************
+
+  # 创建一个临时文件来存放下载的新脚本
+  temp_file=$(mktemp)
+
+  # 下载最新脚本
+  if wget -O "$temp_file" "$GITHUB_RAW_URL"; then
+    echo "脚本下载成功！"
+
+    # 替换当前脚本文件
+    if mv "$temp_file" "$SCRIPT_PATH"; then
+      echo "脚本更新成功！请重新运行脚本以使用最新版本。"
+      exit 0 # 更新成功后退出当前脚本
+    else
+      echo "错误：脚本更新失败！无法替换原文件 '$SCRIPT_PATH'。"
+      echo "请检查文件权限或手动复制 '$temp_file' 到 '$SCRIPT_PATH'。"
+      rm -f "$temp_file" # 清理临时文件
+    fi
+  else
+    echo "错误：脚本下载失败！请检查网络连接或 GitHub Raw URL 是否正确。"
+    # 下载失败不需要清理临时文件，因为wget可能没有创建它，即使创建了也让它留在/tmp里
+  fi
+
+  # 如果更新失败，暂停并返回主菜单
+  read -n 1 -s -p "按任意键返回主菜单..."
+  clear_screen # 添加清屏
+}
+
 
 # 主循环
 while true; do
@@ -320,7 +397,10 @@ while true; do
     1) config_system_env ;;
     2) test_scripts_menu ;;
     3) fuqiang_menu ;;
+    9) update_script ;; # 添加处理更新脚本的 case
     0) echo "退出脚本。"; exit 0 ;;
-    *) echo "无效的指令，请重新输入。" ;;
+    *) echo "无效的指令，请重新输入。"
+       # 无效指令的提示后，不暂停，直接进入下一轮循环，下一轮循环会先清屏，无需在此添加清屏
+       ;;
   esac
 done
