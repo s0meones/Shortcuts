@@ -76,10 +76,10 @@ open_all_ports() {
   clear_screen # 添加清屏
 }
 
-# 函数：执行添加swap的实际操作 (不带颜色)
+# 函数：执行添加/设置swap的实际操作 (不带颜色)
 perform_add_swap() {
   clear_screen
-  echo "执行添加swap虚拟内存..."
+  echo "执行添加/设置swap虚拟内存..." # 更新提示信息
 
   # 检查是否为OVZ，如果是则返回
   ovz_no
@@ -88,10 +88,10 @@ perform_add_swap() {
       return
   fi
 
-  echo "请输入需要添加的swap，建议为内存的2倍！"
+  echo "请输入需要设置的swap大小 (MB)，建议为内存的2倍！" # 更新提示信息
   read -p "请输入swap数值 (MB): " swapsize
 
-  # 检查是否为数字
+  # 检查是否为有效数字
   if ! [[ "$swapsize" =~ ^[0-9]+$ ]]; then
       echo "错误：请输入有效的数字！"
       read -n 1 -s -p "按任意键继续..."
@@ -99,26 +99,61 @@ perform_add_swap() {
       return
   fi
 
-  #检查是否存在swapfile
-  grep -q "swapfile" /etc/fstab
-
-  #如果不存在将为其创建swap
-  if [ $? -ne 0 ]; then
-      echo "swapfile未发现，正在为其创建swapfile..."
-      fallocate -l ${swapsize}M /swapfile
-      chmod 600 /swapfile
-      mkswap /swapfile
-      swapon /swapfile
-      echo '/swapfile none swap defaults 0 0' >> /etc/fstab
-      echo "swap创建成功，并查看信息："
-      cat /proc/swaps
-      cat /proc/meminfo | grep Swap
+  # --- 开始：检查并移除现有的 /swapfile ---
+  echo "正在检查并移除现有的 swapfile (如果存在)..."
+  # 检查 /etc/fstab 中是否有 /swapfile 这一行
+  if grep -q "swapfile" /etc/fstab; then
+      echo "检测到现有的 swapfile 配置，正在移除..."
+      # 尝试先关闭 swapfile
+      swapoff /swapfile 2>/dev/null || true # 忽略错误如果它未激活
+      # 从 fstab 中删除该行
+      sed -i '/swapfile/d' /etc/fstab
+      # 删除 swap 文件
+      rm -f /swapfile
+      echo "现有的 swapfile 已删除。"
   else
-      echo "swapfile已存在，swap设置失败，请先运行脚本删除swap后重新设置！"
+      echo "未发现现有 swapfile 配置。"
+  fi
+  # --- 结束：检查并移除现有的 /swapfile ---
+
+
+  # --- 开始：创建新的 swapfile ---
+  echo "正在创建大小为 ${swapsize}MB 的新 swapfile..."
+  # 检查创建文件命令并使用
+  if command -v fallocate >/dev/null 2>&1; then
+      fallocate -l ${swapsize}M /swapfile
+  elif command -v dd >/dev/null 2>&1; then
+       dd if=/dev/zero of=/swapfile bs=1M count=${swapsize}
+  else
+      echo "错误：找不到 fallocate 或 dd 命令，无法创建 swap 文件。"
+      read -n 1 -s -p "按任意键继续..."
+      clear_screen
+      return
   fi
 
+  # 检查文件是否成功创建
+  if [ ! -f /swapfile ]; then
+      echo "错误：swapfile 创建失败！"
+      read -n 1 -s -p "按任意键继续..."
+      clear_screen
+      return
+  fi
+
+  # 设置文件权限，格式化并启用
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  # 添加到 fstab 使其开机自启动
+  echo '/swapfile none swap defaults 0 0' >> /etc/fstab
+
+  echo "新的 swapfile (${swapsize}MB) 已成功创建并启用。"
+  echo "当前 swap 信息："
+  cat /proc/swaps
+  cat /proc/meminfo | grep Swap
+  # --- 结束：创建新的 swapfile ---
+
   read -n 1 -s -p "按任意键继续..."
-  clear_screen # 添加清屏
+  clear_screen # 清屏
 }
 
 # 函数：执行删除swap的实际操作 (不带颜色)
@@ -133,34 +168,37 @@ perform_del_swap() {
       return
   fi
 
-
-  #检查是否存在swapfile
+  #检查是否存在swapfile 在 /etc/fstab 中
   grep -q "swapfile" /etc/fstab
 
   #如果存在就将其移除
   if [ $? -eq 0 ]; then
       echo "swapfile已发现，正在将其移除..."
+      # 尝试关闭 swapfile
+      swapoff /swapfile 2>/dev/null || true # 忽略错误如果它未激活
+      # 从 fstab 中删除该行
       sed -i '/swapfile/d' /etc/fstab
-      echo "3" > /proc/sys/vm/drop_caches
-      swapoff -a
+      # 清除 pagecache, dentries and inodes (可选，但通常用于释放内存)
+      # echo "3" > /proc/sys/vm/drop_caches # 谨慎使用此命令
+      # 删除 swap 文件
       rm -f /swapfile
       echo "swap已删除！"
   else
-      echo "swapfile未发现，swap删除失败！"
+      echo "swapfile未发现或未配置在 /etc/fstab 中，删除失败！" # 更新提示
   fi
 
   read -n 1 -s -p "按任意键继续..."
-  clear_screen # 添加清屏
+  clear_screen # 清屏
 }
 
-# 函数：Swap 管理子菜单
+# 函数：Swap 虚拟内存管理子菜单
 swap_management_menu() {
     clear_screen
     check_root
     while true; do
         echo "Swap 虚拟内存管理："
         echo "------------------------"
-        echo "1. 添加 swap 虚拟内存"
+        echo "1. 设置/添加 swap 虚拟内存" # 更新菜单名称
         echo "2. 删除 swap 虚拟内存"
         echo "0. 返回上一级选单"
         echo "------------------------"
@@ -168,11 +206,11 @@ swap_management_menu() {
 
         case "$swap_choice" in
             1)
-                perform_add_swap
+                perform_add_swap # 实际执行设置/添加操作
                 # perform_add_swap 函数内部已处理清屏和暂停
                 ;;
             2)
-                perform_del_swap
+                perform_del_swap # 实际执行删除操作
                 # perform_del_swap 函数内部已处理清屏和暂停
                 ;;
             0)
@@ -181,7 +219,7 @@ swap_management_menu() {
             *)
                 echo "无效的指令，请重新输入。"
                 sleep 2
-                clear_screen # 添加清屏
+                clear_screen # 清屏
                 ;;
         esac
     done
@@ -471,9 +509,9 @@ update_script() {
   clear_screen
   echo "正在检查并更新脚本..."
 
-  # *** 请将此处替换为您脚本在 GitHub 上的 Raw URL ***
-  GITHUB_RAW_URL="YOUR_GITHUB_RAW_URL_HERE"
-  # *****************************************************
+  # *** 已替换为您的 GitHub Raw URL ***
+  GITHUB_RAW_URL="https://raw.githubusercontent.com/s0meones/Shortcuts/main/shell.sh"
+  # ***********************************
 
   # 创建一个临时文件来存放下载的新脚本
   temp_file=$(mktemp)
