@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # 设置脚本在出错时立即退出
 set -e
@@ -11,23 +11,6 @@ clear_screen() {
   clear
 }
 
-# 函数：显示主菜单
-show_main_menu() {
-  clear_screen
-  echo ""
-  echo "Debian 12 一键配置交互式脚本"
-  echo "作者：s0meones"
-  echo ""
-  echo "请选择要执行的操作："
-  echo "1. 配置系统环境"
-  echo "2. 测试脚本合集"
-  echo "3. 富强专用"
-  echo "9. 更新脚本" # 添加更新脚本选项
-  echo "0. 退出脚本"
-  echo ""
-  read -p "请输入指令数字并按 Enter 键: " main_choice
-}
-
 # 函数：检查是否以 root 身份运行
 check_root() {
   if [[ "$EUID" -ne 0 ]]; then
@@ -35,6 +18,18 @@ check_root() {
     exit 1
   fi
 }
+
+# 函数：检查是否为 OpenVZ 架构 (不带颜色)
+ovz_no() {
+  if [[ -d "/proc/vz" ]]; then
+    echo "错误：您的VPS是OpenVZ架构，不支持此操作。"
+    read -n 1 -s -p "按任意键返回菜单..."
+    clear_screen
+    return 1 # Indicate OVZ detected
+  fi
+  return 0 # Indicate not OVZ
+}
+
 
 # 函数：发送统计信息 (占位符)
 send_stats() {
@@ -81,6 +76,118 @@ open_all_ports() {
   clear_screen # 添加清屏
 }
 
+# 函数：执行添加swap的实际操作 (不带颜色)
+perform_add_swap() {
+  clear_screen
+  echo "执行添加swap虚拟内存..."
+
+  # 检查是否为OVZ，如果是则返回
+  ovz_no
+  if [ $? -ne 0 ]; then
+      # ovz_no 已经处理了提示、暂停和清屏
+      return
+  fi
+
+  echo "请输入需要添加的swap，建议为内存的2倍！"
+  read -p "请输入swap数值 (MB): " swapsize
+
+  # 检查是否为数字
+  if ! [[ "$swapsize" =~ ^[0-9]+$ ]]; then
+      echo "错误：请输入有效的数字！"
+      read -n 1 -s -p "按任意键继续..."
+      clear_screen
+      return
+  fi
+
+  #检查是否存在swapfile
+  grep -q "swapfile" /etc/fstab
+
+  #如果不存在将为其创建swap
+  if [ $? -ne 0 ]; then
+      echo "swapfile未发现，正在为其创建swapfile..."
+      fallocate -l ${swapsize}M /swapfile
+      chmod 600 /swapfile
+      mkswap /swapfile
+      swapon /swapfile
+      echo '/swapfile none swap defaults 0 0' >> /etc/fstab
+      echo "swap创建成功，并查看信息："
+      cat /proc/swaps
+      cat /proc/meminfo | grep Swap
+  else
+      echo "swapfile已存在，swap设置失败，请先运行脚本删除swap后重新设置！"
+  fi
+
+  read -n 1 -s -p "按任意键继续..."
+  clear_screen # 添加清屏
+}
+
+# 函数：执行删除swap的实际操作 (不带颜色)
+perform_del_swap() {
+  clear_screen
+  echo "执行删除swap虚拟内存..."
+
+   # 检查是否为OVZ，如果是则返回
+  ovz_no
+  if [ $? -ne 0 ]; then
+      # ovz_no 已经处理了提示、暂停和清屏
+      return
+  fi
+
+
+  #检查是否存在swapfile
+  grep -q "swapfile" /etc/fstab
+
+  #如果存在就将其移除
+  if [ $? -eq 0 ]; then
+      echo "swapfile已发现，正在将其移除..."
+      sed -i '/swapfile/d' /etc/fstab
+      echo "3" > /proc/sys/vm/drop_caches
+      swapoff -a
+      rm -f /swapfile
+      echo "swap已删除！"
+  else
+      echo "swapfile未发现，swap删除失败！"
+  fi
+
+  read -n 1 -s -p "按任意键继续..."
+  clear_screen # 添加清屏
+}
+
+# 函数：Swap 管理子菜单
+swap_management_menu() {
+    clear_screen
+    check_root
+    while true; do
+        echo "Swap 虚拟内存管理："
+        echo "------------------------"
+        echo "1. 添加 swap 虚拟内存"
+        echo "2. 删除 swap 虚拟内存"
+        echo "0. 返回上一级选单"
+        echo "------------------------"
+        read -p "请输入指令数字并按 Enter 键: " swap_choice
+
+        case "$swap_choice" in
+            1)
+                perform_add_swap
+                # perform_add_swap 函数内部已处理清屏和暂停
+                ;;
+            2)
+                perform_del_swap
+                # perform_del_swap 函数内部已处理清屏和暂停
+                ;;
+            0)
+                break # 返回配置系统环境菜单
+                ;;
+            *)
+                echo "无效的指令，请重新输入。"
+                sleep 2
+                clear_screen # 添加清屏
+                ;;
+        esac
+    done
+}
+
+
 # 函数：配置系统环境子菜单
 config_system_env() {
   clear_screen
@@ -92,6 +199,7 @@ config_system_env() {
     echo "3. 开启/配置 BBR 加速"
     echo "4. 切换 IPv4/IPv6 优先"
     echo "5. 开放所有端口"
+    echo "6. 添加/管理swap虚拟内存" # 添加新选项
     echo "9. 返回主菜单"
     echo "0. 退出脚本"
     echo ""
@@ -124,6 +232,10 @@ config_system_env() {
       5)
         open_all_ports
         # open_all_ports 函数内部已处理清屏
+        ;;
+      6) # 处理新选项
+        swap_management_menu
+        clear_screen # 从swap管理菜单返回后清屏
         ;;
       9)
         break # 返回主菜单
@@ -360,7 +472,7 @@ update_script() {
   echo "正在检查并更新脚本..."
 
   # *** 请将此处替换为您脚本在 GitHub 上的 Raw URL ***
-  GITHUB_RAW_URL="https://raw.githubusercontent.com/s0meones/Shortcuts/main/shell.sh"
+  GITHUB_RAW_URL="YOUR_GITHUB_RAW_URL_HERE"
   # *****************************************************
 
   # 创建一个临时文件来存放下载的新脚本
@@ -387,6 +499,24 @@ update_script() {
   # 如果更新失败，暂停并返回主菜单
   read -n 1 -s -p "按任意键返回主菜单..."
   clear_screen # 添加清屏
+}
+
+
+# 函数：显示主菜单
+show_main_menu() {
+  clear_screen
+  echo ""
+  echo "Debian 12 一键配置交互式脚本"
+  echo "作者：s0meones"
+  echo ""
+  echo "请选择要执行的操作："
+  echo "1. 配置系统环境"
+  echo "2. 测试脚本合集"
+  echo "3. 富强专用"
+  echo "9. 更新脚本" # 添加更新脚本选项
+  echo "0. 退出脚本"
+  echo ""
+  read -p "请输入指令数字并按 Enter 键: " main_choice
 }
 
 
