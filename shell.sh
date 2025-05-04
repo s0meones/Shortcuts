@@ -529,7 +529,7 @@ update_script() {
       exec "$SCRIPT_PATH"
     else
       echo "错误：脚本更新失败！无法替换原文件 '$SCRIPT_PATH'。"
-      echo "请检查文件权限或手动复制 '$temp_file' 到 '$SCRIPT_PATH'。"
+      echo "请检查文件权限或目标路径是否存在问题。"
       rm -f "$temp_file" # 清理临时文件
     fi
   else
@@ -543,7 +543,60 @@ update_script() {
 }
 
 
-# 函数：显示主菜单
+# --- 首次运行检测与自动安装s命令逻辑 ---
+
+# 定义s命令的目标安装路径和标记文件
+LINK_PATH="/usr/local/bin/s"
+INSTALL_MARKER="/etc/s_command_installed" # 用于标记是否已安装过s命令
+
+# 在检查root权限后执行此逻辑
+check_root
+
+# 检查是否尚未安装s命令标记文件 并且 当前是root用户
+# 注意：这里简化检查，如果标记文件不存在，就认为是首次需要安装
+if [ ! -f "$INSTALL_MARKER" ] && [ "$EUID" -eq 0 ]; then
+    clear_screen
+    echo "欢迎使用此脚本！"
+    echo "检测到脚本尚未安装为 's' 命令全局调用。"
+    echo "此操作将在 '$LINK_PATH' 位置创建一个符号链接指向脚本 '$SCRIPT_PATH'。"
+    echo ""
+    read -p "是否立即安装到 '$LINK_PATH' 并启用 's' 命令？ (y/N): " auto_install_confirm
+
+    if [[ "$auto_install_confirm" == "y" || "$auto_install_confirm" == "Y" ]]; then
+        # 执行安装逻辑 (与 install_s_command 函数内容类似)
+        echo "正在安装..."
+
+        # 检查目标路径是否已存在文件或链接，并尝试覆盖
+        if [ -f "$LINK_PATH" ] || [ -L "$LINK_PATH" ]; then
+            echo "检测到目标路径 '$LINK_PATH' 已存在，正在尝试覆盖..."
+            sudo rm -f "$LINK_PATH" # 使用 sudo 确保权限
+        fi
+
+        # 创建符号链接
+        echo "正在创建新的符号链接 '$LINK_PATH' -> '$SCRIPT_PATH'..."
+        if sudo ln -s "$SCRIPT_PATH" "$LINK_PATH"; then # 使用 sudo 确保权限
+            echo "安装成功！您现在可以使用 's' 命令启动脚本了。"
+            echo "注意：您可能需要关闭并重新打开终端使命令生效。"
+            sudo touch "$INSTALL_MARKER" # 安装成功后创建标记文件
+        else
+            echo "错误：安装失败！请检查是否有写入 '$LINK_PATH' 目录的权限或目标路径是否存在问题。"
+        fi
+
+        # 暂停，让用户看清楚安装结果
+        read -n 1 -s -p "按任意键继续进入主菜单..."
+        clear_screen # 清屏后进入主菜单
+
+    else # 用户取消安装
+        echo "已取消自动安装为 's' 命令。您仍然可以通过完整路径 '$SCRIPT_PATH' 或 './' 方式运行脚本。"
+        # 暂停，让用户看清楚取消信息
+        read -n 1 -s -p "按任意键继续进入主菜单..."
+        clear_screen # 清屏后进入主菜单
+    fi
+fi
+# --- 首次运行检测与自动安装s命令逻辑结束 ---
+
+
+# 函数：显示主菜单 (已移除安装 s 命令选项)
 show_main_menu() {
   clear_screen
   echo ""
@@ -554,21 +607,23 @@ show_main_menu() {
   echo "1. 配置系统环境"
   echo "2. 测试脚本合集"
   echo "3. 富强专用"
-  echo "9. 更新脚本" # 添加更新脚本选项
+  # 原来的 8. 安装 s 命令快速启动 已移除，首次运行已处理
+  echo "9. 更新脚本"
   echo "0. 退出脚本"
   echo ""
   read -p "请输入指令数字并按 Enter 键: " main_choice
 }
 
 
-# 主循环
+# 主循环 (已移除处理选项 8 的 case)
 while true; do
   show_main_menu
   case "$main_choice" in
     1) config_system_env ;;
     2) test_scripts_menu ;;
     3) fuqiang_menu ;;
-    9) update_script ;; # 添加处理更新脚本的 case
+    # 原来的 8) install_s_command ;; 已移除，逻辑已前置
+    9) update_script ;;
     0) echo "退出脚本。"; exit 0 ;;
     *) echo "无效的指令，请重新输入。"
        # 无效指令的提示后，不暂停，直接进入下一轮循环，下一轮循环会先清屏，无需在此添加清屏
