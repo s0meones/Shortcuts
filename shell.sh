@@ -558,7 +558,7 @@ _caddy_show_menu() {
     echo "============================================="
     local caddy_status=$(systemctl is-active caddy 2>/dev/null)
     if [ "$caddy_status" == "active" ]; then echo "Caddy 状态：运行中"; else echo "Caddy 状态：未运行"; fi
-    echo "          Caddy 一键部署 & 管理脚本         "
+    echo "          Caddy 一键部署 & 管理脚本（来自Hlonglin）         "
     echo "============================================="
     echo " 1) 安装 Caddy（如已安装则跳过）"
     echo " 2) 配置 & 启用反向代理（输入域名及上游端口）"
