@@ -6,13 +6,14 @@ set -e
 # 获取当前脚本的绝对路径
 SCRIPT_PATH="$(readlink -f "$0")"
 
-# --- 所有函数定义 ---
+## 辅助函数定义
 
-# 辅助函数
+# 清空屏幕
 clear_screen() {
   clear
 }
 
+# 检查是否以 root 身份运行
 check_root() {
   if [[ "$EUID" -ne 0 ]]; then
     echo "错误：请以 root 用户身份运行此脚本。"
@@ -20,17 +21,20 @@ check_root() {
   fi
 }
 
+# 检查是否为 OpenVZ 架构
 ovz_no() {
   if [[ -d "/proc/vz" ]]; then
     echo "错误：您的VPS是OpenVZ架构，不支持此操作。"
     read -n 1 -s -p "按任意键返回菜单..."
     clear_screen
-    return 1
+    return 1 # 表示检测到OVZ
   fi
-  return 0
+  return 0 # 表示不是OVZ
 }
 
-# 配置系统环境功能 (主菜单选项 1)
+## 配置系统环境功能 (主菜单选项 1)
+
+# 开放所有端口
 open_all_ports() {
   clear_screen
   check_root
@@ -70,21 +74,26 @@ open_all_ports() {
   clear_screen
 }
 
+# 执行添加/设置swap的实际操作
 perform_add_swap() {
   clear_screen
   echo "执行添加/设置swap虚拟内存..."
+
   ovz_no
   if [ $? -ne 0 ]; then
-      return
+      return # ovz_no 已处理了提示和清屏
   fi
+
   echo "请输入需要设置的swap大小 (MB)，建议为内存的2倍！"
   read -p "请输入swap数值 (MB): " swapsize
+
   if ! [[ "$swapsize" =~ ^[0-9]+$ ]]; then
       echo "错误：请输入有效的数字！"
       read -n 1 -s -p "按任意键继续..."
       clear_screen
       return
   fi
+
   echo "正在检查并移除现有的 swapfile (如果存在)..."
   if grep -q "swapfile" /etc/fstab; then
       echo "检测到现有的 swapfile 配置，正在移除..."
@@ -95,6 +104,7 @@ perform_add_swap() {
   else
       echo "未发现现有 swapfile 配置。"
   fi
+
   echo "正在创建大小为 ${swapsize}MB 的新 swapfile..."
   if command -v fallocate >/dev/null 2>&1; then
       fallocate -l ${swapsize}M /swapfile
@@ -106,32 +116,40 @@ perform_add_swap() {
       clear_screen
       return
   fi
+
   if [ ! -f /swapfile ]; then
       echo "错误：swapfile 创建失败！"
       read -n 1 -s -p "按任意键继续..."
       clear_screen
       return
   fi
+
   chmod 600 /swapfile
   mkswap /swapfile
   swapon /swapfile
   echo '/swapfile none swap defaults 0 0' >> /etc/fstab
+
   echo "新的 swapfile (${swapsize}MB) 已成功创建并启用。"
   echo "当前 swap 信息："
   cat /proc/swaps
   cat /proc/meminfo | grep Swap
+
   read -n 1 -s -p "按任意键继续..."
   clear_screen
 }
 
+# 执行删除swap的实际操作
 perform_del_swap() {
   clear_screen
   echo "执行删除swap虚拟内存..."
+
   ovz_no
   if [ $? -ne 0 ]; then
-      return
+      return # ovz_no 已处理了提示和清屏
   fi
+
   grep -q "swapfile" /etc/fstab
+
   if [ $? -eq 0 ]; then
       echo "swapfile已发现，正在将其移除..."
       swapoff /swapfile 2>/dev/null || true
@@ -141,10 +159,12 @@ perform_del_swap() {
   else
       echo "swapfile未发现或未配置在 /etc/fstab 中，删除失败！"
   fi
+
   read -n 1 -s -p "按任意键继续..."
   clear_screen
 }
 
+# Swap 虚拟内存管理子菜单
 swap_management_menu() {
     clear_screen
     check_root
@@ -156,15 +176,21 @@ swap_management_menu() {
         echo "0. 返回上一级选单"
         echo "------------------------"
         read -p "请输入指令数字并按 Enter 键: " swap_choice
+
         case "$swap_choice" in
             1) perform_add_swap ;;
             2) perform_del_swap ;;
             0) break ;;
-            *) echo "无效的指令，请重新输入。"; sleep 2; clear_screen ;;
+            *)
+                echo "无效的指令，请重新输入。"
+                sleep 2
+                clear_screen
+                ;;
         esac
     done
 }
 
+# 使用 tcpx.sh 开启/配置 BBR 加速
 enable_bbr_with_tcpx() {
   clear_screen
   echo "正在下载并执行 tcpx.sh 脚本以开启/配置 BBR 加速..."
@@ -172,7 +198,8 @@ enable_bbr_with_tcpx() {
   if [ -f tcpx.sh ]; then
     chmod +x tcpx.sh
     ./tcpx.sh
-    rm -f tcpx.sh
+    rm -f tcpx.sh # 执行完毕后删除脚本
+
     read -p "tcpx.sh 脚本已执行完毕，是否立即重启服务器以应用更改？ (y/N): " reboot_choice
     if [[ "$reboot_choice" == "y" || "$reboot_choice" == "Y" ]]; then
       echo "正在重启服务器..."
@@ -185,6 +212,7 @@ enable_bbr_with_tcpx() {
   clear_screen
 }
 
+# 切换 IPv4/IPv6 优先子菜单
 ipv4_ipv6_priority_menu() {
   clear_screen
   check_root
@@ -193,16 +221,20 @@ ipv4_ipv6_priority_menu() {
     echo "设置 IPv4/IPv6 优先级"
     echo "------------------------"
     local ipv6_disabled=$(sysctl -n net.ipv6.conf.all.disable_ipv6 2>/dev/null)
+
     if [[ "$ipv6_disabled" == "1" ]]; then
       echo "当前临时优先级：IPv4（IPv6 当前禁用）"
     else
       echo "当前临时优先级：IPv6（IPv6 当前启用）"
     fi
+
     if [[ -f /etc/sysctl.d/99-disable-ipv6.conf ]]; then
       echo "检测到已配置永久禁用 IPv6（重启后仍禁用）"
+    L
     else
       echo "未配置永久禁用 IPv6（重启后可能恢复启用）"
     fi
+
     echo ""
     echo "1. 切换为 IPv4 优先（临时）"
     echo "2. 切换为 IPv6 优先（临时）"
@@ -212,6 +244,7 @@ ipv4_ipv6_priority_menu() {
     echo "0. 返回上一级选单"
     echo "------------------------"
     read -e -p "请选择操作: " choice
+
     case "$choice" in
       1)
         sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null
@@ -256,13 +289,18 @@ EOF
         fi
         echo "======================="
         ;;
-      0) break ;;
-      *) echo "无效输入，请重新选择。" ;;
+      0)
+        break
+        ;;
+      *)
+        echo "无效输入，请重新选择。"
+        ;;
     esac
     read -n 1 -s -p "按任意键继续..."
   done
 }
 
+# 配置系统环境子菜单
 config_system_env() {
   clear_screen
   check_root
@@ -305,7 +343,9 @@ config_system_env() {
   done
 }
 
-# 测试脚本合集功能 (主菜单选项 2)
+## 测试脚本合集功能 (主菜单选项 2)
+
+# 测试脚本合集子菜单
 test_scripts_menu() {
   clear_screen
   while true; do
@@ -361,7 +401,9 @@ test_scripts_menu() {
   done
 }
 
-# 富强专用功能 (主菜单选项 3)
+## 富强专用功能 (主菜单选项 3)
+
+# 富强专用子菜单
 fuqiang_menu() {
   clear_screen
   while true; do
@@ -408,7 +450,7 @@ fuqiang_menu() {
   done
 }
 
-# 建站工具功能 (主菜单选项 4)
+## 建站工具功能 (主菜单选项 4)
 # Caddy 反向代理工具函数 (内部函数均加 `_caddy_` 前缀避免冲突)
 _caddy_check_installed() {
     if command -v caddy >/dev/null 2>&1; then return 0; else return 1; fi
@@ -579,7 +621,7 @@ website_tools_menu() {
     done
 }
 
-# 脚本更新功能 (主菜单选项 9)
+## 脚本更新功能 (主菜单选项 9)
 update_script() {
   clear_screen
   echo "正在检查并更新脚本..."
@@ -603,7 +645,7 @@ update_script() {
   clear_screen
 }
 
-# --- 主菜单显示函数 ---
+## 主菜单显示函数
 show_main_menu() {
   clear_screen
   echo ""
@@ -621,7 +663,8 @@ show_main_menu() {
   read -p "请输入指令数字并按 Enter 键: " main_choice
 }
 
-# --- 脚本初始化和主程序逻辑 ---
+
+## 脚本初始化和主程序逻辑
 
 # 检查是否以 root 身份运行
 check_root
