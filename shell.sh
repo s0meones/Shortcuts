@@ -6,83 +6,7 @@ set -e
 # 获取当前脚本的绝对路径
 SCRIPT_PATH="$(readlink -f "$0")"
 
-# --- 主菜单 ---
-
-# 显示主菜单
-show_main_menu() {
-  clear_screen
-  echo ""
-  echo "Debian 12 一键配置交互式脚本"
-  echo "作者：s0meones"
-  echo ""
-  echo "请选择要执行的操作："
-  echo "1. 配置系统环境"
-  echo "2. 测试脚本合集"
-  echo "3. 富强专用"
-  echo "4. 建站工具"
-  echo "9. 更新脚本"
-  echo "0. 退出脚本"
-  echo ""
-  read -p "请输入指令数字并按 Enter 键: " main_choice
-}
-
-# --- 脚本启动逻辑 ---
-
-# 检查是否以 root 身份运行（在首次运行检测前执行）
-check_root
-
-# 首次运行检测与自动安装 s 命令逻辑
-LINK_PATH="/usr/local/bin/s"
-INSTALL_MARKER="/etc/s_command_installed"
-
-if [ ! -f "$INSTALL_MARKER" ] && [ "$EUID" -eq 0 ]; then
-    clear_screen
-    echo "欢迎使用此脚本！"
-    echo "检测到脚本尚未安装为 's' 命令全局调用。"
-    echo "此操作将在 '$LINK_PATH' 位置创建一个符号链接指向脚本 '$SCRIPT_PATH'。"
-    echo ""
-    read -p "是否立即安装到 '$LINK_PATH' 并启用 's' 命令？ (y/N): " auto_install_confirm
-
-    if [[ "$auto_install_confirm" == "y" || "$auto_install_confirm" == "Y" ]]; then
-        echo "正在安装..."
-        if [ -f "$LINK_PATH" ] || [ -L "$LINK_PATH" ]; then
-            echo "检测到目标路径 '$LINK_PATH' 已存在，正在尝试覆盖..."
-            sudo rm -f "$LINK_PATH"
-        fi
-
-        echo "正在创建新的符号链接 '$LINK_PATH' -> '$SCRIPT_PATH'..."
-        if sudo ln -s "$SCRIPT_PATH" "$LINK_PATH"; then
-            echo "安装成功！您现在可以使用 's' 命令启动脚本了。"
-            echo "注意：您可能需要关闭并重新打开终端使命令生效。"
-            sudo touch "$INSTALL_MARKER"
-        else
-            echo "错误：安装失败！请检查是否有写入 '$LINK_PATH' 目录的权限或目标路径是否存在问题。"
-        fi
-
-        read -n 1 -s -p "按任意键继续进入主菜单..."
-        clear_screen
-    else
-        echo "已取消自动安装为 's' 命令。您仍然可以通过完整路径 '$SCRIPT_PATH' 或 './' 方式运行脚本。"
-        read -n 1 -s -p "按任意键继续进入主菜单..."
-        clear_screen
-    fi
-fi
-
-# 主循环
-while true; do
-  show_main_menu
-  case "$main_choice" in
-    1) config_system_env ;;
-    2) test_scripts_menu ;;
-    3) fuqiang_menu ;;
-    4) website_tools_menu ;;
-    9) update_script ;;
-    0) echo "退出脚本。"; exit 0 ;;
-    *) echo "无效的指令，请重新输入。" ;;
-  esac
-done
-
-# --- 辅助函数定义 (在主循环之后，按功能分组) ---
+# --- 辅助函数 ---
 
 # 清空屏幕
 clear_screen() {
@@ -108,7 +32,7 @@ ovz_no() {
   return 0 # 表示不是OVZ
 }
 
-# --- 功能函数：配置系统环境 (主菜单选项 1 对应的子菜单和功能) ---
+# --- 功能函数：配置系统环境 (主菜单选项 1) ---
 
 # 开放所有端口
 open_all_ports() {
@@ -418,7 +342,7 @@ config_system_env() {
   done
 }
 
-# --- 功能函数：测试脚本合集 (主菜单选项 2 对应的子菜单和功能) ---
+# --- 功能函数：测试脚本合集 (主菜单选项 2) ---
 
 # 测试脚本合集子菜单
 test_scripts_menu() {
@@ -476,7 +400,7 @@ test_scripts_menu() {
   done
 }
 
-# --- 功能函数：富强专用 (主菜单选项 3 对应的子菜单和功能) ---
+# --- 功能函数：富强专用 (主菜单选项 3) ---
 
 # 富强专用子菜单
 fuqiang_menu() {
@@ -525,7 +449,7 @@ fuqiang_menu() {
   done
 }
 
-# --- 功能函数：建站工具 (主菜单选项 4 对应的子菜单和功能) ---
+# --- 功能函数：建站工具 (主菜单选项 4) ---
 
 # Caddy 反向代理工具函数 (原 caddy_proxy_tool.sh 脚本内容)
 caddy_proxy_tool() {
@@ -818,7 +742,7 @@ website_tools_menu() {
     done
 }
 
-# --- 功能函数：更新脚本 (主菜单选项 9 对应的功能) ---
+# --- 功能函数：更新脚本 (主菜单选项 9) ---
 
 # 更新脚本
 update_script() {
@@ -846,3 +770,80 @@ update_script() {
   read -n 1 -s -p "按任意键返回主菜单..."
   clear_screen
 }
+
+# --- 首次运行检测与自动安装 s 命令逻辑 ---
+
+# 定义s命令的目标安装路径和标记文件
+LINK_PATH="/usr/local/bin/s"
+INSTALL_MARKER="/etc/s_command_installed"
+
+# 在检查root权限后执行此逻辑
+check_root
+
+# 检查是否尚未安装s命令标记文件 并且 当前是root用户
+if [ ! -f "$INSTALL_MARKER" ] && [ "$EUID" -eq 0 ]; then
+    clear_screen
+    echo "欢迎使用此脚本！"
+    echo "检测到脚本尚未安装为 's' 命令全局调用。"
+    echo "此操作将在 '$LINK_PATH' 位置创建一个符号链接指向脚本 '$SCRIPT_PATH'。"
+    echo ""
+    read -p "是否立即安装到 '$LINK_PATH' 并启用 's' 命令？ (y/N): " auto_install_confirm
+
+    if [[ "$auto_install_confirm" == "y" || "$auto_install_confirm" == "Y" ]]; then
+        echo "正在安装..."
+        if [ -f "$LINK_PATH" ] || [ -L "$LINK_PATH" ]; then
+            echo "检测到目标路径 '$LINK_PATH' 已存在，正在尝试覆盖..."
+            sudo rm -f "$LINK_PATH"
+        fi
+
+        echo "正在创建新的符号链接 '$LINK_PATH' -> '$SCRIPT_PATH'..."
+        if sudo ln -s "$SCRIPT_PATH" "$LINK_PATH"; then
+            echo "安装成功！您现在可以使用 's' 命令启动脚本了。"
+            echo "注意：您可能需要关闭并重新打开终端使命令生效。"
+            sudo touch "$INSTALL_MARKER"
+        else
+            echo "错误：安装失败！请检查是否有写入 '$LINK_PATH' 目录的权限或目标路径是否存在问题。"
+        fi
+
+        read -n 1 -s -p "按任意键继续进入主菜单..."
+        clear_screen
+    else
+        echo "已取消自动安装为 's' 命令。您仍然可以通过完整路径 '$SCRIPT_PATH' 或 './' 方式运行脚本。"
+        read -n 1 -s -p "按任意键继续进入主菜单..."
+        clear_screen
+    fi
+fi
+
+# --- 主菜单 ---
+
+# 显示主菜单
+show_main_menu() {
+  clear_screen
+  echo ""
+  echo "Debian 12 一键配置交互式脚本"
+  echo "作者：s0meones"
+  echo ""
+  echo "请选择要执行的操作："
+  echo "1. 配置系统环境"
+  echo "2. 测试脚本合集"
+  echo "3. 富强专用"
+  echo "4. 建站工具"
+  echo "9. 更新脚本"
+  echo "0. 退出脚本"
+  echo ""
+  read -p "请输入指令数字并按 Enter 键: " main_choice
+}
+
+# 主循环
+while true; do
+  show_main_menu
+  case "$main_choice" in
+    1) config_system_env ;;
+    2) test_scripts_menu ;;
+    3) fuqiang_menu ;;
+    4) website_tools_menu ;;
+    9) update_script ;;
+    0) echo "退出脚本。"; exit 0 ;;
+    *) echo "无效的指令，请重新输入。" ;;
+  esac
+done
