@@ -312,65 +312,95 @@ enable_bbr_with_tcpx() {
   clear_screen # 添加清屏
 }
 
-# 函数：切换 IPv4/IPv6 优先子菜单 (被 config_system_env 调用)
+# 函数：切换 IPv4/IPv6 优先子菜单（含永久禁用、恢复、查看状态）
 ipv4_ipv6_priority_menu() {
   clear_screen
   check_root
   send_stats "设置v4/v6优先级"
   while true; do
-    echo "设置v4/v6优先级"
+    clear_screen
+    echo "设置 IPv4/IPv6 优先级"
     echo "------------------------"
-    local ipv6_disabled=$(sysctl -n net.ipv6.conf.all.disable_ipv6)
+    local ipv6_disabled=$(sysctl -n net.ipv6.conf.all.disable_ipv6 2>/dev/null)
 
-    if [ "$ipv6_disabled" -eq 1 ]; then
-      echo "当前网络优先级设置: IPv4 优先"
+    if [[ "$ipv6_disabled" == "1" ]]; then
+      echo "当前临时优先级：IPv4（IPv6 当前禁用）"
     else
-      echo "当前网络优先级设置: IPv6 优先"
+      echo "当前临时优先级：IPv6（IPv6 当前启用）"
     fi
+
+    if [[ -f /etc/sysctl.d/99-disable-ipv6.conf ]]; then
+      echo "检测到已配置永久禁用 IPv6（重启后仍禁用）"
+    else
+      echo "未配置永久禁用 IPv6（重启后可能恢复启用）"
+    fi
+
     echo ""
-    echo "------------------------"
-    echo "1. IPv4 优先           2. IPv6 优先           3. IPv6 修复工具"
-    echo "------------------------"
+    echo "1. 切换为 IPv4 优先（临时）"
+    echo "2. 切换为 IPv6 优先（临时）"
+    echo "3. 永久禁用 IPv6（重启后保留）"
+    echo "4. 恢复 IPv6 设置（启用并删除禁用配置）"
+    echo "5. 查看当前网络优先状态"
     echo "0. 返回上一级选单"
     echo "------------------------"
-    read -e -p "选择优先的网络: " choice
+    read -e -p "请选择操作: " choice
 
-    case $choice in
+    case "$choice" in
       1)
-        sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 > /dev/null 2>&1
-        echo "已切换为 IPv4 优先"
-        send_stats "已切换为 IPv4 优先"
-        read -n 1 -s -p "按任意键继续..." # 添加暂停
-        clear_screen # 添加清屏
+        sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null
+        sysctl -w net.ipv6.conf.default.disable_ipv6=1 >/dev/null
+        echo "已切换为 IPv4 优先（临时）"
+        send_stats "IPv4优先"
         ;;
       2)
-        sudo sysctl -w net.ipv6.conf.all.disable_ipv6=0 > /dev/null 2>&1
-        echo "已切换为 IPv6 优先"
-        send_stats "已切换为 IPv6 优先"
-        read -n 1 -s -p "按任意键继续..." # 添加暂停
-        clear_screen # 添加清屏
+        sysctl -w net.ipv6.conf.all.disable_ipv6=0 >/dev/null
+        sysctl -w net.ipv6.conf.default.disable_ipv6=0 >/dev/null
+        echo "已切换为 IPv6 优先（临时）"
+        send_stats "IPv6优先"
         ;;
-
       3)
-        clear_screen # 调用外部脚本前先清屏，保持界面整洁
-        bash <(curl -L -s jhb.ovh/jb/v6.sh)
-        echo "该功能由jhb大神提供，感谢他！"
-        send_stats "ipv6修复"
-        read -n 1 -s -p "按任意键返回 v4/v6 优先级菜单..."
-        clear_screen # 添加清屏
+        echo "正在永久禁用 IPv6..."
+        cat <<EOF > /etc/sysctl.d/99-disable-ipv6.conf
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+EOF
+        sysctl --system
+        echo "IPv6 已永久禁用。建议重启系统以确保完全生效。"
+        send_stats "永久禁用IPv6"
         ;;
-
+      4)
+        echo "正在恢复 IPv6 设置..."
+        rm -f /etc/sysctl.d/99-disable-ipv6.conf
+        sysctl -w net.ipv6.conf.all.disable_ipv6=0 >/dev/null
+        sysctl -w net.ipv6.conf.default.disable_ipv6=0 >/dev/null
+        sysctl --system
+        echo "IPv6 设置已恢复（启用）。"
+        send_stats "恢复IPv6设置"
+        ;;
+      5)
+        clear_screen
+        echo "=== 当前 IPv6 状态 ==="
+        echo "系统临时设置："
+        sysctl net.ipv6.conf.all.disable_ipv6
+        sysctl net.ipv6.conf.default.disable_ipv6
+        echo ""
+        echo "持久配置文件："
+        if [[ -f /etc/sysctl.d/99-disable-ipv6.conf ]]; then
+          echo "/etc/sysctl.d/99-disable-ipv6.conf 存在："
+          cat /etc/sysctl.d/99-disable-ipv6.conf
+        else
+          echo "未发现持久禁用配置文件（IPv6 默认可启用）"
+        fi
+        echo "======================="
+        ;;
       0)
         break
         ;;
-
       *)
-        echo "无效的选择，请重新输入。"
-        sleep 2
-        clear_screen # 添加清屏
+        echo "无效输入，请重新选择。"
         ;;
-
     esac
+    read -n 1 -s -p "按任意键继续..."
   done
 }
 
