@@ -440,7 +440,7 @@ fuqiang_menu() {
       4)
         clear_screen
         echo "正在安装 realm & gost 一键转发脚本，请稍候..."
-        wget --no-check-certificate -O gost.sh https://raw.githubusercontent.com/qqrrooty/EZgost/main/gost.sh && chmod +x gost.sh && ./gost.sh
+        wget --no-check-certificate -O realm.sh wget -N https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm.sh && chmod +x realm.sh && ./realm.sh
         echo "realm & gost 一键转发脚本安装完成。脚本将退出。"
         exit 0
         ;;
