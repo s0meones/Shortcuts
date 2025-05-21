@@ -6,14 +6,13 @@ set -e
 # 获取当前脚本的绝对路径
 SCRIPT_PATH="$(readlink -f "$0")"
 
-## 辅助函数定义
+# --- 所有函数定义 ---
 
-# 清空屏幕
+# 辅助函数
 clear_screen() {
   clear
 }
 
-# 检查是否以 root 身份运行
 check_root() {
   if [[ "$EUID" -ne 0 ]]; then
     echo "错误：请以 root 用户身份运行此脚本。"
@@ -21,7 +20,6 @@ check_root() {
   fi
 }
 
-# 检查是否为 OpenVZ 架构
 ovz_no() {
   if [[ -d "/proc/vz" ]]; then
     echo "错误：您的VPS是OpenVZ架构，不支持此操作。"
@@ -230,7 +228,6 @@ ipv4_ipv6_priority_menu() {
 
     if [[ -f /etc/sysctl.d/99-disable-ipv6.conf ]]; then
       echo "检测到已配置永久禁用 IPv6（重启后仍禁用）"
-    L
     else
       echo "未配置永久禁用 IPv6（重启后可能恢复启用）"
     fi
@@ -411,7 +408,7 @@ fuqiang_menu() {
     echo "1. 安装 3x-ui 面板"
     echo "2. 安装八合一脚本"
     echo "3. 安装 snell"
-    echo "4. 安装 realm & gost 一键转发脚本"
+    echo "4. 安装 realm 一键转发脚本" # 修改了此处
     echo "0. 返回主菜单"
     echo ""
     read -p "请输入指令数字并按 Enter 键: " sub_choice_fq
@@ -439,9 +436,9 @@ fuqiang_menu() {
         ;;
       4)
         clear_screen
-        echo "正在安装 realm & gost 一键转发脚本，请稍候..."
-        wget --no-check-certificate -O realm.sh wget -N https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm.sh && chmod +x realm.sh && ./realm.sh
-        echo "realm一键转发脚本安装完成。脚本将退出。"
+        echo "正在下载并安装 realm 一键转发脚本，请稍候..." # 修改了此处
+        wget -N https://raw.githubusercontent.com/qqrrooty/EZrealm/main/realm.sh && chmod +x realm.sh && ./realm.sh
+        echo "realm 一键转发脚本安装并启动完成。脚本将退出。" # 修改了此处
         exit 0
         ;;
       0) break ;;
@@ -558,7 +555,7 @@ _caddy_show_menu() {
     echo "============================================="
     local caddy_status=$(systemctl is-active caddy 2>/dev/null)
     if [ "$caddy_status" == "active" ]; then echo "Caddy 状态：运行中"; else echo "Caddy 状态：未运行"; fi
-    echo "          Caddy 一键部署 & 管理脚本（来自Hlonglin）         "
+    echo "          Caddy 一键部署 & 管理脚本         "
     echo "============================================="
     echo " 1) 安装 Caddy（如已安装则跳过）"
     echo " 2) 配置 & 启用反向代理（输入域名及上游端口）"
