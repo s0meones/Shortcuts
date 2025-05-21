@@ -6,7 +6,7 @@ set -e
 # 获取当前脚本的绝对路径
 SCRIPT_PATH="$(readlink -f "$0")"
 
-# --- 辅助函数 ---
+# --- 辅助函数定义 ---
 
 # 清空屏幕
 clear_screen() {
@@ -32,7 +32,9 @@ ovz_no() {
   return 0 # 表示不是OVZ
 }
 
-# --- 功能函数：配置系统环境 (主菜单选项 1) ---
+---
+
+### 系统环境配置功能 (主菜单选项 1)
 
 # 开放所有端口
 open_all_ports() {
@@ -294,6 +296,7 @@ EOF
       *)
         echo "无效输入，请重新选择。"
         ;;
+    esl
     esac
     read -n 1 -s -p "按任意键继续..."
   done
@@ -342,7 +345,9 @@ config_system_env() {
   done
 }
 
-# --- 功能函数：测试脚本合集 (主菜单选项 2) ---
+---
+
+### 测试脚本合集功能 (主菜单选项 2)
 
 # 测试脚本合集子菜单
 test_scripts_menu() {
@@ -400,7 +405,9 @@ test_scripts_menu() {
   done
 }
 
-# --- 功能函数：富强专用 (主菜单选项 3) ---
+---
+
+### 富强专用功能 (主菜单选项 3)
 
 # 富强专用子菜单
 fuqiang_menu() {
@@ -449,7 +456,9 @@ fuqiang_menu() {
   done
 }
 
-# --- 功能函数：建站工具 (主菜单选项 4) ---
+---
+
+### 建站工具功能 (主菜单选项 4)
 
 # Caddy 反向代理工具函数 (原 caddy_proxy_tool.sh 脚本内容)
 caddy_proxy_tool() {
@@ -462,7 +471,7 @@ BACKUP_CADDYFILE="${CADDYFILE}.bak"
 PROXY_CONFIG_FILE="/root/caddy_reverse_proxies.txt"
 
 # 检查 Caddy 是否已安装
-check_caddy_installed() {
+_check_caddy_installed() { # 加前缀避免与主脚本函数名冲突
     if command -v caddy >/dev/null 2>&1; then
         return 0  # 已安装
     else
@@ -471,7 +480,7 @@ check_caddy_installed() {
 }
 
 # 安装 Caddy（官方仓库）
-install_caddy() {
+_install_caddy() { # 加前缀避免冲突
     echo "开始安装 Caddy..."
     sudo apt-get update
     sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
@@ -485,7 +494,7 @@ install_caddy() {
     sudo apt-get update
     sudo apt-get install -y caddy
 
-    if check_caddy_installed; then
+    if _check_caddy_installed; then
         echo "Caddy 安装成功！"
     else
         echo "Caddy 安装失败，请检查日志。"
@@ -494,7 +503,7 @@ install_caddy() {
 }
 
 # 检查指定端口服务是否在运行
-check_port_running() {
+_check_port_running() { # 加前缀避免冲突
     local port=$1
     if timeout 1 bash -c "echo > /dev/tcp/127.0.0.1/$port" 2>/dev/null; then
         echo "运行中"
@@ -504,7 +513,7 @@ check_port_running() {
 }
 
 # 配置反向代理
-setup_reverse_proxy() {
+_setup_reverse_proxy() { # 加前缀避免冲突
     echo "请输入域名（例如 example.com）："
     read domain
     if [ -z "$domain" ]; then
@@ -541,15 +550,15 @@ setup_reverse_proxy() {
     echo "正在重启 Caddy 服务以应用新配置..."
     sudo systemctl restart caddy
 
-    status=$(check_port_running "$port")
+    status=$(_check_port_running "$port")
     echo "上游服务（127.0.0.1:${port}）状态：$status"
     echo "Caddy 服务状态："
     sudo systemctl status caddy --no-pager
 }
 
 # 查看 Caddy 服务状态
-show_caddy_status() {
-    if check_caddy_installed; then
+_show_caddy_status() { # 加前缀避免冲突
+    if _check_caddy_installed; then
         echo "Caddy 服务状态："
         sudo systemctl status caddy --no-pager
     else
@@ -558,14 +567,14 @@ show_caddy_status() {
 }
 
 # 查看反向代理配置，并显示上游服务状态
-show_reverse_proxies() {
+_show_reverse_proxies() { # 加前缀避免冲突
     if [ -f "$PROXY_CONFIG_FILE" ]; then
         echo "当前反向代理配置："
         lineno=0
         while IFS= read -r line; do
             lineno=$((lineno+1))
             port=$(echo "$line" | grep -oE '[0-9]{2,5}$')
-            status=$(check_port_running "$port")
+            status=$(_check_port_running "$port")
             echo "${lineno}) ${line} [上游服务状态：$status]"
         done < "$PROXY_CONFIG_FILE"
     else
@@ -574,8 +583,8 @@ show_reverse_proxies() {
 }
 
 # 删除指定的反向代理
-delete_reverse_proxy() {
-    show_reverse_proxies
+_delete_reverse_proxy() { # 加前缀避免冲突
+    _show_reverse_proxies
     echo "请输入要删除的反向代理配置编号："
     read proxy_number
     if [ -z "$proxy_number" ]; then
@@ -615,7 +624,7 @@ delete_reverse_proxy() {
 }
 
 # 重启 Caddy 服务
-restart_caddy() {
+_restart_caddy() { # 加前缀避免冲突
     echo "正在重启 Caddy 服务..."
     sudo systemctl restart caddy
     echo "Caddy 服务已重启。"
@@ -623,7 +632,7 @@ restart_caddy() {
 }
 
 # 一键删除 Caddy
-remove_caddy() {
+_remove_caddy() { # 加前缀避免冲突
     echo "确定要卸载 Caddy 并删除配置文件吗？(y/n)"
     read confirm
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
@@ -650,7 +659,7 @@ remove_caddy() {
 }
 
 # 显示 Caddy 菜单
-show_caddy_menu() {
+_show_caddy_menu() { # 加前缀避免冲突
     echo "============================================="
     caddy_status=$(systemctl is-active caddy 2>/dev/null)
     if [ "$caddy_status" == "active" ]; then
@@ -672,30 +681,30 @@ show_caddy_menu() {
 }
 
 # Caddy 反代工具的主循环
-while_caddy_proxy_tool() {
+caddy_proxy_tool() {
   while true; do
-      show_caddy_menu
+      _show_caddy_menu # 调用内部函数
       read -p "请输入选项: " opt
       case "$opt" in
           1)
-              if check_caddy_installed; then
+              if _check_caddy_installed; then
                   echo "Caddy 已安装，跳过安装。"
               else
-                  install_caddy || continue
+                  _install_caddy || continue
               fi
               ;;
           2)
-              if ! check_caddy_installed; then
+              if ! _check_caddy_installed; then
                   echo "Caddy 未安装，先执行安装步骤。"
-                  install_caddy || continue
+                  _install_caddy || continue
               fi
-              setup_reverse_proxy
+              _setup_reverse_proxy
               ;;
-          3) show_caddy_status ;;
-          4) show_reverse_proxies ;;
-          5) delete_reverse_proxy ;;
-          6) restart_caddy ;;
-          7) remove_caddy ;;
+          3) _show_caddy_status ;;
+          4) _show_reverse_proxies ;;
+          5) _delete_reverse_proxy ;;
+          6) _restart_caddy ;;
+          7) _remove_caddy ;;
           0)
               echo "返回上一级菜单。"
               break
@@ -728,7 +737,7 @@ website_tools_menu() {
                 ;;
             2)
                 clear_screen
-                while_caddy_proxy_tool # 调用 Caddy 反代工具的主循环
+                caddy_proxy_tool # 调用 Caddy 反代工具的主循环
                 read -n 1 -s -p "按任意键继续..."
                 clear_screen
                 ;;
@@ -742,7 +751,9 @@ website_tools_menu() {
     done
 }
 
-# --- 功能函数：更新脚本 (主菜单选项 9) ---
+---
+
+### 脚本更新功能 (主菜单选项 9)
 
 # 更新脚本
 update_script() {
@@ -771,16 +782,19 @@ update_script() {
   clear_screen
 }
 
-# --- 首次运行检测与自动安装 s 命令逻辑 ---
+---
+
+### 脚本初始化和主程序逻辑
 
 # 定义s命令的目标安装路径和标记文件
 LINK_PATH="/usr/local/bin/s"
 INSTALL_MARKER="/etc/s_command_installed"
 
-# 在检查root权限后执行此逻辑
+# 脚本启动时执行的初始化步骤
+# 1. 检查 root 权限
 check_root
 
-# 检查是否尚未安装s命令标记文件 并且 当前是root用户
+# 2. 首次运行检测与自动安装 's' 命令逻辑
 if [ ! -f "$INSTALL_MARKER" ] && [ "$EUID" -eq 0 ]; then
     clear_screen
     echo "欢迎使用此脚本！"
@@ -814,27 +828,7 @@ if [ ! -f "$INSTALL_MARKER" ] && [ "$EUID" -eq 0 ]; then
     fi
 fi
 
-# --- 主菜单 ---
-
-# 显示主菜单
-show_main_menu() {
-  clear_screen
-  echo ""
-  echo "Debian 12 一键配置交互式脚本"
-  echo "作者：s0meones"
-  echo ""
-  echo "请选择要执行的操作："
-  echo "1. 配置系统环境"
-  echo "2. 测试脚本合集"
-  echo "3. 富强专用"
-  echo "4. 建站工具"
-  echo "9. 更新脚本"
-  echo "0. 退出脚本"
-  echo ""
-  read -p "请输入指令数字并按 Enter 键: " main_choice
-}
-
-# 主循环
+# 主循环：显示主菜单并处理用户输入
 while true; do
   show_main_menu
   case "$main_choice" in
